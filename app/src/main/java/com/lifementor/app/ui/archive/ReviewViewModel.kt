@@ -7,9 +7,15 @@ import com.lifementor.app.data.AppStorage
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Leveling
 import com.lifementor.app.data.PlanMeta
+import com.lifementor.app.llm.AiOperationRegistry
 import com.lifementor.app.llm.ChatMessage
 import com.lifementor.app.llm.LlmClient
 import com.lifementor.app.llm.Prompts
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -21,9 +27,19 @@ class ReviewViewModel : ViewModel() {
     val selectedId = mutableStateOf<Long?>(null)
     val running = mutableStateOf(false)
     val error = mutableStateOf<String?>(null)
+    private var reviewJob: Job? = null
 
     init {
         versions.value.firstOrNull()?.let { select(it.id) }
+        viewModelScope.launch {
+            AiOperationRegistry.resetVersion.drop(1).collect {
+                versions.value = emptyList()
+                content.value = ""
+                selectedId.value = null
+                running.value = false
+                error.value = null
+            }
+        }
     }
 
     fun select(id: Long) {
@@ -45,7 +61,7 @@ class ReviewViewModel : ViewModel() {
         }
         running.value = true
         error.value = null
-        viewModelScope.launch {
+        val operation = AiOperationRegistry.createJob(viewModelScope) { token ->
             try {
                 val stat = Leveling.weeklyStat(tasks, GameStore.loadXP())
                 val goalLines = GameStore.loadGoals().filter { it.status == "active" }.joinToString("\n") { g ->
@@ -61,14 +77,28 @@ class ReviewViewModel : ViewModel() {
                         ChatMessage("user", Prompts.reviewMessage(label, stat, goalLines)),
                     ),
                 )
+                if (!AiOperationRegistry.isCurrent(token)) return@createJob
                 val meta = AppStorage.saveDoc("reviews", md, settings.model, "")
                 versions.value = AppStorage.versions("reviews").reversed()
                 select(meta.id)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                error.value = e.message ?: "生成失败"
+                if (AiOperationRegistry.isCurrent(token)) error.value = e.message ?: "生成失败"
             } finally {
-                running.value = false
+                if (reviewJob === coroutineContext.job) {
+                    reviewJob = null
+                    running.value = false
+                    if (!AiOperationRegistry.isCurrent(token)) {
+                        versions.value = emptyList()
+                        content.value = ""
+                        selectedId.value = null
+                        error.value = null
+                    }
+                }
             }
         }
+        reviewJob = operation.job
+        operation.start()
     }
 }

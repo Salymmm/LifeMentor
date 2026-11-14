@@ -7,9 +7,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifementor.app.data.AppStorage
 import com.lifementor.app.data.PlanMeta
+import com.lifementor.app.llm.AiOperationRegistry
 import com.lifementor.app.llm.ChatMessage
 import com.lifementor.app.llm.LlmClient
+import com.lifementor.app.llm.LlmException
 import com.lifementor.app.llm.Prompts
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 sealed interface GenState {
@@ -30,9 +37,19 @@ class PlanViewModel : ViewModel() {
     var state by mutableStateOf<GenState>(GenState.Idle)
         private set
     val requestText = mutableStateOf("")
+    private var generationJob: Job? = null
 
     init {
         selectLatest()
+        viewModelScope.launch {
+            AiOperationRegistry.resetVersion.drop(1).collect {
+                _versions.value = emptyList()
+                selectedId = null
+                content.value = ""
+                state = GenState.Idle
+                requestText.value = ""
+            }
+        }
     }
 
     fun selectLatest() {
@@ -45,6 +62,7 @@ class PlanViewModel : ViewModel() {
     }
 
     fun generate() {
+        if (generationJob?.isActive == true) return
         val settings = AppStorage.loadSettings()
         val profile = AppStorage.loadProfile()
         if (settings.apiKey.isBlank()) {
@@ -56,7 +74,8 @@ class PlanViewModel : ViewModel() {
             return
         }
         state = GenState.Running
-        viewModelScope.launch {
+        content.value = ""
+        val operation = AiOperationRegistry.createJob(viewModelScope) { token ->
             try {
                 val messages = if (_versions.value.isEmpty()) {
                     listOf(
@@ -70,15 +89,37 @@ class PlanViewModel : ViewModel() {
                         ChatMessage("user", Prompts.updateMessage(profile, previous, requestText.value)),
                     )
                 }
-                val md = LlmClient.chat(settings, messages)
+                val streamed = StringBuilder()
+                LlmClient.chatStream(settings, messages).collect { chunk ->
+                    streamed.append(chunk)
+                    if (AiOperationRegistry.isCurrent(token)) content.value = streamed.toString()
+                }
+                val md = streamed.toString().trim()
+                if (md.isBlank()) throw LlmException("模型返回了空内容，请重试")
+                if (!AiOperationRegistry.isCurrent(token)) return@createJob
                 val meta = AppStorage.saveDoc("plans", md, settings.model, requestText.value.trim())
                 _versions.value = AppStorage.versions("plans").reversed()
                 select(meta.id)
                 requestText.value = ""
                 state = GenState.Done
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                state = GenState.Error(e.message ?: "生成失败（${e.javaClass.simpleName}）")
+                if (AiOperationRegistry.isCurrent(token)) {
+                    state = GenState.Error(e.message ?: "生成失败（${e.javaClass.simpleName}）")
+                }
+            } finally {
+                if (generationJob === coroutineContext.job) {
+                    generationJob = null
+                    if (!AiOperationRegistry.isCurrent(token)) {
+                        state = GenState.Idle
+                        content.value = ""
+                        requestText.value = ""
+                    }
+                }
             }
         }
+        generationJob = operation.job
+        operation.start()
     }
 }
