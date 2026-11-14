@@ -9,9 +9,14 @@ import com.lifementor.app.data.AppStorage
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Role
 import com.lifementor.app.data.Settings
+import com.lifementor.app.llm.AiOperationRegistry
 import com.lifementor.app.llm.ChatMessage
 import com.lifementor.app.llm.LlmClient
-import kotlinx.coroutines.launch
+import com.lifementor.app.llm.MentorTaskBus
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,6 +33,7 @@ class SettingsViewModel : ViewModel() {
         private set
     var testResult by mutableStateOf<String?>(null)
         private set
+    private var testJob: Job? = null
 
     // 人生角色编辑（创建向导的后续修改入口）
     private val loadedRole = GameStore.loadRole()
@@ -46,8 +52,23 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun wipeAll() {
+        AiOperationRegistry.invalidateAndCancel()
+        MentorTaskBus.clearAll()
         GameStore.clearAll()
         AppStorage.wipeDocsAndProfile()
+        File(AppStorage.appCtx.cacheDir, "shared").deleteRecursively()
+        baseUrl.value = Settings.DEFAULT_BASE_URL
+        model.value = Settings.DEFAULT_MODEL
+        apiKey.value = ""
+        savedAt = null
+        testing = false
+        testResult = null
+        roleNickname.value = Role().nickname
+        roleAvatar.value = Role().avatar
+        roleStage.value = Role().stage
+        roleVision.value = Role().vision
+        roleSavedAt = null
+        testJob = null
     }
 
     fun save() {
@@ -69,19 +90,36 @@ class SettingsViewModel : ViewModel() {
         }
         testing = true
         testResult = null
-        viewModelScope.launch {
+        val operation = AiOperationRegistry.createJob(viewModelScope) { token ->
             try {
                 val reply = LlmClient.chat(
                     s,
-                    listOf(ChatMessage("user", "如果你能收到这条消息，请只回复两个字：通连")),
+                    listOf(
+                        ChatMessage(
+                            "system",
+                            "Reply in English only. Use English letters, digits, and standard punctuation only; do not output Chinese characters. Keep the answer concise.",
+                        ),
+                        ChatMessage("user", "If you can read this, reply with exactly: Connection successful"),
+                    ),
                 )
-                testResult = "✓ 连接成功，模型回复：${reply.take(30)}"
+                if (AiOperationRegistry.isCurrent(token)) {
+                    testResult = "✓ 连接成功，模型回复：${reply.take(30)}"
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                testResult = "❌ " + (e.message ?: e.toString())
+                if (AiOperationRegistry.isCurrent(token)) {
+                    testResult = "❌ " + (e.message ?: e.toString())
+                }
             } finally {
-                testing = false
+                if (testJob === coroutineContext.job) {
+                    testJob = null
+                    testing = false
+                }
             }
         }
+        testJob = operation.job
+        operation.start()
     }
 
     private fun current() = Settings(

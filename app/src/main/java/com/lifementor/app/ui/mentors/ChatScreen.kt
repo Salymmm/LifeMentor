@@ -43,7 +43,13 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
     val mentor = Mentors.byId(mentorId) ?: return
     val listState = rememberLazyListState()
     val msgs = vm.messages.value
+    val canProposeHandoff = msgs.any { it.role == "assistant" && it.content.isNotBlank() }
     val domainXp = Leveling.domainTotals(GameStore.loadXP())[mentor.id] ?: 0
+
+    LaunchedEffect(msgs.size, msgs.lastOrNull()?.content, vm.sending.value) {
+        val itemCount = msgs.size + if (vm.sending.value) 1 else 0
+        if (itemCount > 0) listState.scrollToItem(itemCount - 1)
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -69,6 +75,13 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            TextButton(
+                onClick = { vm.requestHandoff() },
+                enabled = canProposeHandoff && !vm.sending.value &&
+                    !vm.handoffBusy.value && vm.handoffSuggestion.value == null,
+            ) {
+                Text(if (vm.handoffBusy.value) "分析中…" else "联动建议")
+            }
             TextButton(onClick = { vm.clearHistory() }) { Text("清空") }
         }
 
@@ -88,6 +101,47 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
                     }
                 }
             }
+        }
+
+        if (vm.handoffBusy.value) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("正在分析是否适合交给另一位导师", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        vm.handoffSuggestion.value?.let { suggestion ->
+            val targetName = Mentors.byId(suggestion.targetMentorId)?.name ?: suggestion.targetMentorId
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("建议联动至 $targetName", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text("任务：${suggestion.taskTitle}")
+                    if (suggestion.rationale.isNotBlank()) {
+                        Text("原因：${suggestion.rationale}", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Button(onClick = { vm.acceptHandoff() }) { Text("确认转交") }
+                        TextButton(onClick = { vm.dismissHandoff() }) { Text("取消") }
+                    }
+                }
+            }
+        }
+
+        vm.handoffStatus.value?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
         }
 
         vm.error.value?.let {
@@ -113,6 +167,23 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
             }
         }
 
+        TextButton(
+            onClick = { vm.toggleSimulationMode() },
+            enabled = !vm.sending.value && !vm.handoffBusy.value,
+            modifier = Modifier.padding(start = 8.dp, top = 2.dp),
+        ) {
+            Text(if (vm.simulationMode.value) "🔮 推演模式已开启 · 点击关闭" else "🔮 推演模式")
+        }
+
+        if (vm.simulationMode.value) {
+            Text(
+                "本次选择会结合你的画像进行三路径比较；关闭后恢复普通导师对话。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+            )
+        }
+
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.Bottom,
@@ -120,12 +191,26 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
             OutlinedTextField(
                 value = vm.draft.value,
                 onValueChange = { vm.draft.value = it },
-                placeholder = { Text("和${mentor.name.split("·").lastOrNull()?.trim() ?: "导师"}说说…") },
+                placeholder = {
+                    Text(
+                        if (vm.simulationMode.value) "描述要比较的选择…"
+                        else "和${mentor.name.split("·").lastOrNull()?.trim() ?: "导师"}说说…",
+                    )
+                },
                 modifier = Modifier.weight(1f),
                 maxLines = 4,
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = { vm.send() }, enabled = !vm.sending.value) { Text("发送") }
+            if (vm.sending.value) {
+                Button(onClick = { vm.cancelSending() }) { Text("停止") }
+            } else {
+                Button(
+                    onClick = { vm.send() },
+                    enabled = !vm.handoffBusy.value,
+                ) {
+                    Text(if (vm.simulationMode.value) "推演" else "发送")
+                }
+            }
         }
     }
 }
