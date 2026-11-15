@@ -3,6 +3,8 @@ package com.lifementor.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.time.LocalDate
+import com.lifementor.app.notify.TaskReminders
 
 /** 目标 / 任务 / XP / 聊天 / 角色 的本地仓库（JSON 文件实现，后续可无痛迁移 Room） */
 object GameStore {
@@ -45,6 +47,7 @@ object GameStore {
 
     fun setGoalDone(id: Long) {
         saveGoals(loadGoals().map { if (it.id == id) it.copy(status = "done") else it })
+        loadTasks().filter { it.goalId == id }.forEach { TaskReminders.cancelTask(ctx, it.id) }
     }
 
     fun markDecomposed(id: Long) {
@@ -67,6 +70,22 @@ object GameStore {
 
     fun setTaskDueDate(taskId: Long, dueDate: Long?) {
         saveTasks(loadTasks().map { if (it.id == taskId) it.copy(dueDate = dueDate) else it })
+        TaskReminders.cancelTask(ctx, taskId)
+    }
+
+    /** 通知和今日任务使用只完成操作；重复点击不会撤销或重复奖励。 */
+    fun completeTask(taskId: Long): Int {
+        val tasks = loadTasks()
+        val index = tasks.indexOfFirst { it.id == taskId }
+        if (index < 0 || tasks[index].done) return 0
+        val task = tasks[index]
+        val goal = loadGoals().find { it.id == task.goalId && it.status == "active" } ?: return 0
+        val awarded = if (task.xpGiven) 0 else Leveling.xpForLevel(task.level)
+        tasks[index] = task.completed(System.currentTimeMillis()).copy(xpGiven = true)
+        if (awarded > 0) addXP(awarded, task.title, goal.domain)
+        saveTasks(tasks)
+        TaskReminders.cancelTask(ctx, taskId)
+        return awarded
     }
 
     /** 勾选/取消勾选任务；首次完成时按档位发放 XP（只奖不罚，反悔不回收） */
@@ -88,17 +107,20 @@ object GameStore {
             addXP(awarded, t.title, goal?.domain ?: "pathfinder")
         }
         saveTasks(tasks)
+        TaskReminders.cancelTask(ctx, taskId)
         return awarded
     }
 
     fun addQuickAction(goalId: Long, title: String) {
         val tasks = loadTasks()
         val anchor = tasks.lastOrNull { it.goalId == goalId && it.level == 2 }?.id
-        tasks.add(TaskItem(System.currentTimeMillis(), goalId, anchor, 3, title.trim()))
+        tasks.add(TaskItem(System.currentTimeMillis(), goalId, anchor, 3, title.trim(),
+            dueDate = TaskAgenda.dateMillis(LocalDate.now())))
         saveTasks(tasks)
     }
 
     fun deleteGoalTree(goalId: Long) {
+        loadTasks().filter { it.goalId == goalId }.forEach { TaskReminders.cancelTask(ctx, it.id) }
         saveTasks(loadTasks().filter { it.goalId != goalId })
         saveGoals(loadGoals().filter { it.id != goalId })
     }
@@ -135,6 +157,7 @@ object GameStore {
     }
 
     fun clearAll() {
+        TaskReminders.reset(ctx)
         listOf(goalsFile, tasksFile, xpFile, roleFile).forEach { it.delete() }
         chatsDir.listFiles()?.forEach { it.delete() }
     }

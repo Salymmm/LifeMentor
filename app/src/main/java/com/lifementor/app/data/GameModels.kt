@@ -49,6 +49,8 @@ data class TaskItem(
         Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
     }
 
+    fun completed(at: Long): TaskItem = if (done) this else copy(done = true, doneAt = at)
+
     companion object {
         fun from(o: JSONObject): TaskItem = TaskItem(
             o.getLong("id"), o.getLong("goalId"),

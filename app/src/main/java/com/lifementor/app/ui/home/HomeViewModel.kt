@@ -7,6 +7,8 @@ import com.lifementor.app.data.Leveling
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.Role
 import com.lifementor.app.data.TaskItem
+import com.lifementor.app.data.TaskAgenda
+import java.time.LocalDate
 
 class HomeViewModel : ViewModel() {
     data class Snap(
@@ -15,7 +17,8 @@ class HomeViewModel : ViewModel() {
         val into: Int,
         val need: Int,
         val totalXp: Int,
-        val today: List<TaskItem>,
+        val agenda: TaskAgenda.Groups,
+        val goalTitles: Map<Long, String>,
         val radar: List<Pair<String, Float>>,
         val radarXp: List<Int>,
         val achievementsDone: Int,
@@ -23,6 +26,7 @@ class HomeViewModel : ViewModel() {
     )
 
     val snap = mutableStateOf(load())
+    val error = mutableStateOf<String?>(null)
 
     fun refresh() {
         snap.value = load()
@@ -30,6 +34,7 @@ class HomeViewModel : ViewModel() {
 
     private fun load(): Snap {
         val tasks = GameStore.loadTasks()
+        val goals = GameStore.loadGoals().filter { it.status == "active" }
         val xp = GameStore.loadXP()
         val total = xp.sumOf { it.amount }
         val (into, need) = Leveling.progressOf(total)
@@ -43,7 +48,8 @@ class HomeViewModel : ViewModel() {
             into = into,
             need = need,
             totalXp = total,
-            today = tasks.filter { !it.done && it.level == 3 }.take(8),
+            agenda = TaskAgenda.groups(tasks, goals.map { it.id }.toSet(), LocalDate.now()),
+            goalTitles = goals.associate { it.id to it.title },
             radar = doms.map { it.second to (domainXp[it.first] ?: 0) / maxV.toFloat() },
             radarXp = doms.map { domainXp[it.first] ?: 0 },
             achievementsDone = ach.count { it.earned },
@@ -51,8 +57,19 @@ class HomeViewModel : ViewModel() {
         )
     }
 
-    fun toggle(task: TaskItem) {
-        GameStore.toggleTask(task.id)
-        refresh()
+    fun complete(task: TaskItem) {
+        try {
+            GameStore.completeTask(task.id)
+            error.value = null
+            refresh()
+        } catch (e: Exception) { error.value = "保存任务失败，请重试" }
+    }
+
+    fun schedule(task: TaskItem, day: LocalDate) {
+        try {
+            GameStore.setTaskDueDate(task.id, TaskAgenda.dateMillis(day))
+            error.value = null
+            refresh()
+        } catch (e: Exception) { error.value = "保存任务日期失败，请重试" }
     }
 }

@@ -42,6 +42,7 @@ import com.lifementor.app.data.Role
 import com.lifementor.app.ui.components.LabeledField
 import com.lifementor.app.ui.components.SectionTitle
 import com.lifementor.app.ui.profile.ProfileViewModel
+import com.lifementor.app.notify.ReminderSettings
 
 private data class Preset(val name: String, val url: String, val model: String, val hint: String)
 
@@ -69,6 +70,9 @@ fun SettingsScreen(
             .padding(16.dp)
     ) {
         Text("设置", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(10.dp))
+
+        ReminderSettings()
         Spacer(Modifier.height(10.dp))
 
         // ---------- 人生角色 ----------

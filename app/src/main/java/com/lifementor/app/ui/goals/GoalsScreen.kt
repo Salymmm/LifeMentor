@@ -87,7 +87,7 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
                         Column(Modifier.padding(20.dp)) {
                             Text("还没有目标", fontWeight = FontWeight.Bold)
                             Text(
-                                "点「新增目标」写下你在意的事，再让 AI 把它拆成里程碑 → 周任务 → 每日行动。",
+                                "点「新增目标」写下你在意的事，可以手动添加行动，也可以让 AI 帮你拆解。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -117,7 +117,7 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
     val mentor = Mentors.byId(goal.domain)
     val sub = vm.tasks.filter { it.goalId == goal.id }
     val isDecomposing = vm.decomposingId.value == goal.id
-    val open = vm.expanded[goal.id] == true || !goal.decomposed
+    val open = vm.expanded[goal.id] ?: !goal.decomposed
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
@@ -143,7 +143,7 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                             androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
                     )
                     Text(
-                        if (goal.decomposed) {
+                        if (sub.isNotEmpty()) {
                             val d = sub.count { it.done }
                             "${mentor?.domainLabel ?: goal.domain}　$d/${sub.size} 已完成"
                         } else {
@@ -153,8 +153,8 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (goal.decomposed) {
-                    TextButton(onClick = { vm.expanded[goal.id] = !(vm.expanded[goal.id] == true) }) {
+                if (sub.isNotEmpty()) {
+                    TextButton(onClick = { vm.expanded[goal.id] = !open }) {
                         Text(if (open) "收起" else "展开")
                     }
                 }
@@ -173,8 +173,8 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                     }
                 }
                 Spacer(Modifier.width(6.dp))
-                if (goal.decomposed) {
-                    TextButton(onClick = onQuickAdd) { Text("+ 今日行动") }
+                if (goal.status == "active") {
+                    TextButton(onClick = onQuickAdd) { Text("+ 添加行动") }
                 }
                 Spacer(Modifier.weight(1f))
                 if (goal.status == "active") {
@@ -183,7 +183,7 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                 TextButton(onClick = { vm.deleteGoal(goal.id) }) { Text("删除") }
             }
 
-            if (open && goal.decomposed) {
+            if (open && sub.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 val ms = sub.filter { it.level == 1 }
                 ms.forEach { m ->
@@ -194,6 +194,9 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                             TaskRow(d, level = 3, vm = vm)
                         }
                     }
+                }
+                sub.filter { it.level == 3 && it.parentId == null }.forEach { task ->
+                    TaskRow(task, level = 3, vm = vm)
                 }
             }
         }
@@ -317,7 +320,7 @@ private fun QuickActionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var title by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("加一条今日行动") },
+        title = { Text("添加行动（默认安排到今天）") },
         text = {
             OutlinedTextField(
                 value = title,
@@ -328,7 +331,7 @@ private fun QuickActionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
                 maxLines = 3,
             )
         },
-        confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title.trim()) }) { Text("添加 (+10 XP)") } },
+        confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title.trim()) }) { Text("添加") } },
         dismissButton = { TextButton(onDismiss) { Text("取消") } },
     )
 }

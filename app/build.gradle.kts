@@ -16,7 +16,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.lifementor.app.TaskExecutionSmoke"
     }
 
     buildTypes {
@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.work.runtime)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.json.test)

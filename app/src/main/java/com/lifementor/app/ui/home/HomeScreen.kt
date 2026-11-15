@@ -23,13 +23,25 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.Mentors
+import com.lifementor.app.data.TaskItem
+import com.lifementor.app.notify.TaskReminders
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZonedDateTime
 import com.lifementor.app.ui.components.RadarChart
 
 @Composable
@@ -38,7 +50,26 @@ fun HomeScreen(
     goMentors: () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
-    LaunchedEffect(Unit) { vm.refresh() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val context = LocalContext.current
+    DisposableEffect(lifecycle, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                TaskReminders.reconcile(context)
+                vm.refresh()
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            vm.refresh()
+            val now = ZonedDateTime.now()
+            delay(Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone))
+                .toMillis().coerceAtLeast(1000))
+        }
+    }
     val s = vm.snap.value
 
     Column(
@@ -102,33 +133,12 @@ fun HomeScreen(
             )
         }
 
-        // 今日行动
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp)) {
-                Text("今日行动", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                if (s.today.isEmpty()) {
-                    Text(
-                        "今天还没有可勾选的行动。去「目标」页让 AI 帮你拆一个目标吧。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    TextButton(onClick = goGoals) { Text("去拆解目标 →") }
-                } else {
-                    s.today.forEach { t ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(onCheckedChange = { vm.toggle(t) }, checked = false)
-                            Text(t.title, fontSize = 14.sp)
-                        }
-                    }
-                    Text(
-                        "完成一项 +10 XP",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+        vm.error.value?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        AgendaSection("今天", s.agenda.today, "今天没有已安排的行动", s.goalTitles, vm)
+        TextButton(onClick = goGoals) { Text("添加行动 / 安排日期 →") }
+        AgendaSection("待重新安排", s.agenda.overdue, "没有需要重新安排的行动", s.goalTitles, vm)
+        AgendaSection("未来", s.agenda.future, "还没有未来的安排", s.goalTitles, vm)
+        AgendaSection("未安排", s.agenda.unscheduled, "所有行动都已安排日期", s.goalTitles, vm)
 
         // 五维成长
         Card(Modifier.fillMaxWidth()) {
@@ -154,5 +164,45 @@ fun HomeScreen(
 
         TextButton(onClick = goMentors) { Text("找导师聊聊 →") }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun AgendaSection(
+    title: String,
+    tasks: List<TaskItem>,
+    emptyText: String,
+    goalTitles: Map<Long, String>,
+    vm: HomeViewModel,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp)) {
+            Text("$title · ${tasks.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (tasks.isEmpty()) {
+                Text(emptyText, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            tasks.forEach { task ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = false, onCheckedChange = { vm.complete(task) })
+                    Column(Modifier.weight(1f)) {
+                        Text(task.title, fontSize = 14.sp)
+                        Text("${goalTitles[task.goalId].orEmpty()} · ${task.dueDateText() ?: "未安排日期"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Row(Modifier.padding(start = 36.dp)) {
+                    if (task.dueDate == null) {
+                        TextButton(onClick = { vm.schedule(task, LocalDate.now()) }) { Text("安排到今天") }
+                    }
+                    TextButton(onClick = { vm.schedule(task, LocalDate.now().plusDays(1)) }) { Text("移到明天") }
+                }
+            }
+            if (tasks.isNotEmpty()) {
+                Text("首次完成每项行动 +10 XP", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
