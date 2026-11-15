@@ -11,13 +11,9 @@ import com.lifementor.app.data.TaskItem
 import java.io.File
 
 /** Uses isolated files and negative fixture IDs; never resets user reminders or user data. */
-class GoalInteractionSmoke : Instrumentation() {
-    override fun onCreate(arguments: Bundle?) {
-        super.onCreate(arguments)
-        start()
-    }
-
-    override fun onStart() {
+internal object GoalInteractionSmoke {
+    fun run(instrumentation: Instrumentation) {
+        val targetContext = instrumentation.targetContext
         val directory = File(targetContext.cacheDir, "goal-smoke-${System.nanoTime()}").apply { mkdirs() }
         val context = object : ContextWrapper(targetContext) {
             override fun getApplicationContext(): Context = this
@@ -29,7 +25,7 @@ class GoalInteractionSmoke : Instrumentation() {
             check(condition) { description }
             checks++
         }
-        runOnMainSync {
+        instrumentation.runOnMainSync {
             try {
                 AppStorage.init(context)
                 val goal = Goal(-100, "Isolated goal", "pathfinder", decomposed = true)
@@ -55,7 +51,7 @@ class GoalInteractionSmoke : Instrumentation() {
                 directory.deleteRecursively()
             }
         }
-        finish(if (failure == null) -1 else 0, Bundle().apply {
+        instrumentation.finish(if (failure == null) -1 else 0, Bundle().apply {
             putString("stream", failure?.let { "FAIL after $checks checks: ${it.stackTraceToString()}" }
                 ?: "PASS: $checks isolated goal undo checks")
         })

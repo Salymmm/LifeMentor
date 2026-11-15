@@ -19,9 +19,12 @@ import java.time.LocalDate
 
 /** Device acceptance checks using isolated files and preferences; no test library required. */
 class TaskExecutionSmoke : Instrumentation() {
+    private var goalInteractionsOnly = false
+
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
-        if (arguments?.getString("disposable") != "true") {
+        goalInteractionsOnly = arguments?.getString("goal_interactions") == "true"
+        if (!goalInteractionsOnly && arguments?.getString("disposable") != "true") {
             finish(0, Bundle().apply {
                 putString("stream", "REFUSED: use -e disposable true only on a throwaway emulator; this test cancels app-wide reminders.")
             })
@@ -31,6 +34,10 @@ class TaskExecutionSmoke : Instrumentation() {
     }
 
     override fun onStart() {
+        if (goalInteractionsOnly) {
+            GoalInteractionSmoke.run(this)
+            return
+        }
         val directory = File(targetContext.cacheDir, "execution-smoke-${System.nanoTime()}").apply { mkdirs() }
         val context = object : ContextWrapper(targetContext) {
             override fun getApplicationContext(): Context = this
