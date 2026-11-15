@@ -36,6 +36,7 @@ import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Leveling
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.Msg
+import com.lifementor.app.ui.components.MarkdownText
 
 @Composable
 fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewModel()) {
@@ -232,12 +233,13 @@ private fun Bubble(m: Msg, accent: androidx.compose.ui.graphics.Color) {
                 bottomEnd = if (mine) 4.dp else 16.dp,
             ),
         ) {
-            Text(
+            if (mine) Text(
                 m.content,
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (mine) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(12.dp),
             )
+            else MarkdownText(m.content, scrollable = false)
         }
         if (!mine) Spacer(Modifier.weight(1f))
     }

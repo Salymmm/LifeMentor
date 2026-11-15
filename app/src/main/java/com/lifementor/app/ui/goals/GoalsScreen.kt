@@ -1,10 +1,10 @@
 package com.lifementor.app.ui.goals
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,6 +50,7 @@ import com.lifementor.app.data.Goal
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
 import com.lifementor.app.ui.components.TaskDateDialog
+import com.lifementor.app.ui.components.TaskDateAction
 
 private data class NewTask(val goalId: Long, val parentId: Long?)
 
@@ -321,7 +322,8 @@ private fun TaskRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) }, enabled = canMutate)
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f).clickable(enabled = textOverflows || textExpanded,
+                onClickLabel = if (textExpanded) "收起文字" else "展开全文") { textExpanded = !textExpanded }) {
                 if (depth > 3) {
                     Text("第 ${depth + 1} 层子任务", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -336,24 +338,20 @@ private fun TaskRow(
                     overflow = TextOverflow.Ellipsis,
                     onTextLayout = { if (!textExpanded) textOverflows = it.hasVisualOverflow },
                 )
+                t.dueDateText()?.let { date ->
+                    Text(date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            TaskDateAction(t.title, t.dueDateText(), canMutate) { showDatePicker = true }
+            if (canMutate) {
+                IconButton(onClick = onAddSubtask, modifier = Modifier.size(40.dp)
+                    .semantics { contentDescription = "为「${t.title}」添加子任务" }) { Text("＋", fontSize = 24.sp) }
             }
             if (childCount > 0) {
                 val open = vm.expandedTasks[t.id] == true
-                TextButton(onClick = { vm.expandedTasks[t.id] = !open }) {
-                    Text(if (open) "收起" else "展开 $childCount", fontSize = 12.sp, maxLines = 1)
-                }
-            }
-        }
-        FlowRow(Modifier.padding(start = (indent + 48).dp)) {
-            TextButton(onClick = { showDatePicker = true }, enabled = canMutate) {
-                Text(t.dueDateText() ?: "安排日期", fontSize = 12.sp, maxLines = 1)
-            }
-            if (canMutate) {
-                TextButton(onClick = onAddSubtask) { Text("添加子任务", fontSize = 12.sp) }
-            }
-            if (textOverflows || textExpanded) {
-                TextButton(onClick = { textExpanded = !textExpanded }) {
-                    Text(if (textExpanded) "收起文字" else "展开全文", fontSize = 12.sp)
+                IconButton(onClick = { vm.expandedTasks[t.id] = !open }, modifier = Modifier.size(36.dp)
+                    .semantics { contentDescription = if (open) "收起「${t.title}」子任务" else "展开「${t.title}」的 $childCount 个子任务" }) {
+                    Text(if (open) "▾" else "▸", fontSize = 20.sp)
                 }
             }
         }

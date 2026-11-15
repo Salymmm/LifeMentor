@@ -55,6 +55,8 @@ import kotlinx.coroutines.isActive
 import java.time.ZonedDateTime
 import com.lifementor.app.ui.components.RadarChart
 import com.lifementor.app.ui.components.TaskDateDialog
+import com.lifementor.app.ui.components.TaskDateAction
+import com.lifementor.app.ui.components.ExpandableCard
 
 @Composable
 fun HomeScreen(
@@ -148,6 +150,25 @@ fun HomeScreen(
             }
         }
 
+        // 五维成长
+        ExpandableCard("五维成长") {
+            RadarChart(
+                labels = s.radar.map { it.first },
+                values = s.radar.map { it.second },
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+            )
+            Row(Modifier.fillMaxWidth()) {
+                s.radar.forEachIndexed { i, p ->
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(p.first, style = MaterialTheme.typography.labelSmall)
+                        Text("${s.radarXp[i]}", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+
         if (s.role.vision.isNotBlank()) {
             Text(
                 "「${s.role.vision}」",
@@ -163,28 +184,6 @@ fun HomeScreen(
         AgendaSection("待重新安排", s.agenda.overdue, "没有需要重新安排的行动", s.goalTitles, vm) { dateTaskId = it }
         AgendaSection("未来", s.agenda.future, "还没有未来的安排", s.goalTitles, vm) { dateTaskId = it }
         AgendaSection("未安排", s.agenda.unscheduled, "所有行动都已安排日期", s.goalTitles, vm) { dateTaskId = it }
-
-        // 五维成长
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp)) {
-                Text("五维成长", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                RadarChart(
-                    labels = s.radar.map { it.first },
-                    values = s.radar.map { it.second },
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth().height(220.dp),
-                )
-                Row(Modifier.fillMaxWidth()) {
-                    s.radar.forEachIndexed { i, p ->
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(p.first, style = MaterialTheme.typography.labelSmall)
-                            Text("${s.radarXp[i]}", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-        }
 
         TextButton(onClick = goMentors) { Text("找导师聊聊 →") }
         Spacer(Modifier.height(8.dp))
@@ -215,33 +214,26 @@ private fun AgendaSection(
     vm: HomeViewModel,
     onSetDate: (Long) -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp)) {
-            Text("$title · ${tasks.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            if (tasks.isEmpty()) {
-                Text(emptyText, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            tasks.forEach { task ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = false, onCheckedChange = { vm.complete(task) })
-                    Column(Modifier.weight(1f)) {
-                        Text(task.title, fontSize = 14.sp)
-                        Text("${goalTitles[task.goalId].orEmpty()} · ${task.dueDateText() ?: "未安排日期"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+    ExpandableCard("$title · ${tasks.size}", initiallyExpanded = title == "今天" || title == "待重新安排") {
+        if (tasks.isEmpty()) {
+            Text(emptyText, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        tasks.forEach { task ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = false, onCheckedChange = { vm.complete(task) })
+                Column(Modifier.weight(1f)) {
+                    Text(task.title, fontSize = 14.sp)
+                    Text("${goalTitles[task.goalId].orEmpty()} · ${task.dueDateText() ?: "未安排日期"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Row(Modifier.padding(start = 36.dp)) {
-                    TextButton(onClick = { onSetDate(task.id) }) {
-                        Text(if (task.dueDate == null) "设置日期" else "更改日期")
-                    }
-                }
+                TaskDateAction(task.title, task.dueDateText()) { onSetDate(task.id) }
             }
-            if (tasks.isNotEmpty()) {
-                Text("首次完成每项行动 +10 XP", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        }
+        if (tasks.isNotEmpty()) {
+            Text("首次完成每项行动 +10 XP", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
