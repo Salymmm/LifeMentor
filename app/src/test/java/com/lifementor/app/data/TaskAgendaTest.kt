@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.util.TimeZone
 
 class TaskAgendaTest {
@@ -51,5 +52,17 @@ class TaskAgendaTest {
         assertEquals(original.id, completed.id)
         assertEquals(completed, completed.completed(2000))
         assertFalse(original.done)
+    }
+
+    @Test fun midnightDeadlineIsRecomputedForTheCurrentZoneAndDayLength() {
+        val cases = listOf(
+            "2026-11-15T20:00:00+08:00[Asia/Shanghai]" to 4L,
+            "2026-11-15T22:00:00+10:00[Australia/Brisbane]" to 2L,
+            "2026-03-08T00:00:00-05:00[America/New_York]" to 23L,
+            "2026-11-01T00:00:00-04:00[America/New_York]" to 25L,
+        )
+        for ((now, hours) in cases) {
+            assertEquals(hours * 60 * 60 * 1000, TaskAgenda.nextRefreshDelay(ZonedDateTime.parse(now)))
+        }
     }
 }

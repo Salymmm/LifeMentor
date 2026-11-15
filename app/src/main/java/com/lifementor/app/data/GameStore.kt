@@ -5,9 +5,11 @@ import org.json.JSONObject
 import java.io.File
 import java.time.LocalDate
 import com.lifementor.app.notify.TaskReminders
+import androidx.compose.runtime.mutableIntStateOf
 
 /** 目标 / 任务 / XP / 聊天 / 角色 的本地仓库（JSON 文件实现，后续可无痛迁移 Room） */
 object GameStore {
+    val taskRevision = mutableIntStateOf(0)
     private val ctx get() = AppStorage.appCtx
     private val goalsFile get() = File(ctx.filesDir, "goals.json")
     private val tasksFile get() = File(ctx.filesDir, "tasks.json")
@@ -35,6 +37,7 @@ object GameStore {
         val a = JSONArray()
         list.forEach { a.put(it.toJson()) }
         goalsFile.writeText(a.toString())
+        taskRevision.intValue++
     }
 
     fun addGoal(title: String, domain: String): Goal {
@@ -66,6 +69,7 @@ object GameStore {
         val a = JSONArray()
         list.forEach { a.put(it.toJson()) }
         tasksFile.writeText(a.toString())
+        taskRevision.intValue++
     }
 
     fun setTaskDueDate(taskId: Long, dueDate: Long?) {
@@ -160,6 +164,7 @@ object GameStore {
         TaskReminders.reset(ctx)
         listOf(goalsFile, tasksFile, xpFile, roleFile).forEach { it.delete() }
         chatsDir.listFiles()?.forEach { it.delete() }
+        taskRevision.intValue++
     }
 
     /** 创建向导完成：写角色 + 勾选的主线自动生成目标 */

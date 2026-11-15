@@ -11,6 +11,9 @@ import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.TaskAgenda
 import com.lifementor.app.notify.TaskActionReceiver
 import com.lifementor.app.notify.TaskReminders
+import androidx.work.WorkManager
+import androidx.work.WorkInfo
+import java.util.concurrent.TimeUnit
 import java.io.File
 import java.time.LocalDate
 
@@ -18,6 +21,12 @@ import java.time.LocalDate
 class TaskExecutionSmoke : Instrumentation() {
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
+        if (arguments?.getString("disposable") != "true") {
+            finish(0, Bundle().apply {
+                putString("stream", "REFUSED: use -e disposable true only on a throwaway emulator; this test cancels app-wide reminders.")
+            })
+            return
+        }
         start()
     }
 
@@ -61,12 +70,24 @@ class TaskExecutionSmoke : Instrumentation() {
                     return notifications.activeNotifications.size == expected
                 }
                 verify(notificationCountIs(1), "Test notification is posted")
+                val snooze = Intent(context, TaskActionReceiver::class.java)
+                    .setAction("com.lifementor.app.SNOOZE_TASK")
+                    .putExtra("task_id", task.id).putExtra("due_date", date.toString())
+                TaskActionReceiver().onReceive(context, snooze)
+                val snoozes = WorkManager.getInstance(context)
+                    .getWorkInfosForUniqueWork("snooze_task:${task.id}").get(5, TimeUnit.SECONDS)
+                verify(snoozes.any { it.state == WorkInfo.State.ENQUEUED && it.initialDelayMillis == 3_600_000L },
+                    "Snooze schedules one-hour work")
+                verify(notificationCountIs(0), "Snooze dismisses current notification")
+                TaskReminders.showTest(context)
+                val revision = GameStore.taskRevision.intValue
                 val complete = Intent(context, TaskActionReceiver::class.java)
                     .setAction("com.lifementor.app.COMPLETE_TASK")
                     .putExtra("task_id", task.id).putExtra("due_date", date.toString())
                 TaskActionReceiver().onReceive(context, complete)
                 TaskActionReceiver().onReceive(context, complete)
                 verify(GameStore.loadTasks().single().done, "Notification completes the task")
+                verify(GameStore.taskRevision.intValue > revision, "Completion signals visible task screens to refresh")
                 verify(GameStore.loadXP().sumOf { it.amount } == 10, "Duplicate actions award XP once")
                 verify(notificationCountIs(0), "Completion dismisses notification")
 

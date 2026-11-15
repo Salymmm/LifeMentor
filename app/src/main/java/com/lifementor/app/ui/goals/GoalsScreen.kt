@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import com.lifementor.app.data.TaskItem
 
 @Composable
 fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
+    LaunchedEffect(GameStore.taskRevision.intValue) { vm.refresh() }
     var showAdd by remember { mutableStateOf(false) }
     var quickAddGoalId by remember { mutableStateOf<Long?>(null) }
 

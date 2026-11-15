@@ -2,6 +2,8 @@ package com.lifementor.app.data
 
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.Duration
 
 object TaskAgenda {
     data class Groups(
@@ -24,4 +26,8 @@ object TaskAgenda {
     }
 
     fun dateMillis(day: LocalDate): Long = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+    fun nextRefreshDelay(now: ZonedDateTime): Long =
+        Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone))
+            .toMillis().coerceAtLeast(1000)
 }

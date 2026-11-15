@@ -24,6 +24,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,13 +42,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
+import com.lifementor.app.data.TaskAgenda
+import com.lifementor.app.data.GameStore
 import com.lifementor.app.notify.TaskReminders
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import java.time.Duration
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import com.lifementor.app.ui.components.RadarChart
@@ -52,22 +62,33 @@ fun HomeScreen(
 ) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val context = LocalContext.current
+    var clockRevision by remember { mutableIntStateOf(0) }
     DisposableEffect(lifecycle, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 TaskReminders.reconcile(context)
-                vm.refresh()
+                clockRevision++
             }
         }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
+        val timeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { clockRevision++ }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_DATE_CHANGED)
+        }
+        ContextCompat.registerReceiver(context, timeReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            context.unregisterReceiver(timeReceiver)
+        }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(GameStore.taskRevision.intValue, clockRevision) {
         while (isActive) {
             vm.refresh()
-            val now = ZonedDateTime.now()
-            delay(Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone))
-                .toMillis().coerceAtLeast(1000))
+            delay(TaskAgenda.nextRefreshDelay(ZonedDateTime.now()))
         }
     }
     val s = vm.snap.value
