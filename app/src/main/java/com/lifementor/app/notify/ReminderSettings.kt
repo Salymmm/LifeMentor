@@ -1,6 +1,10 @@
 package com.lifementor.app.notify
 
 import android.Manifest
+import android.app.TimePickerDialog
+import android.text.format.DateFormat
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -40,6 +44,7 @@ fun ReminderSettings() {
     var enabled by remember { mutableStateOf(TaskReminders.isEnabled(context)) }
     var allowed by remember { mutableStateOf(TaskReminders.canPost(context)) }
     var message by remember { mutableStateOf<String?>(null) }
+    var time by remember { mutableStateOf(TaskReminders.reminderTime(context)) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) TaskReminders.setEnabled(context, true)
         enabled = TaskReminders.isEnabled(context)
@@ -62,6 +67,7 @@ fun ReminderSettings() {
                 TaskReminders.reconcile(context)
                 enabled = TaskReminders.isEnabled(context)
                 allowed = TaskReminders.canPost(context)
+                time = TaskReminders.reminderTime(context)
                 message = null
             }
         }
@@ -88,7 +94,15 @@ fun ReminderSettings() {
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Text("每天本地时间 08:00 左右，提醒今日或明日的一个未完成行动。系统省电可能延迟提醒。", style = MaterialTheme.typography.bodySmall)
+            val timeText = time.format(DateTimeFormatter.ofPattern("HH:mm"))
+            TextButton(onClick = {
+                TimePickerDialog(context, { _, hour, minute ->
+                    time = LocalTime.of(hour, minute)
+                    TaskReminders.setReminderTime(context, time)
+                    message = "已保存提醒时间 " + time.format(DateTimeFormatter.ofPattern("HH:mm"))
+                }, time.hour, time.minute, DateFormat.is24HourFormat(context)).show()
+            }) { Text("每日提醒时间：$timeText · 更改") }
+            Text("每天本地时间 $timeText 左右，提醒今日或明日的一个未完成行动。系统省电可能延迟提醒。", style = MaterialTheme.typography.bodySmall)
             if (!allowed) TextButton(onClick = { requestEnable() }) { Text("允许通知") }
             TextButton(onClick = {
                 context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))

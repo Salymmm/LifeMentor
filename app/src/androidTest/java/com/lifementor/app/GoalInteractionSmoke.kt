@@ -3,11 +3,14 @@ package com.lifementor.app
 import android.app.Instrumentation
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.SharedPreferences
 import android.os.Bundle
 import com.lifementor.app.data.AppStorage
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.TaskItem
+import com.lifementor.app.notify.TaskReminders
+import java.time.LocalTime
 import java.io.File
 
 /** Uses isolated files and negative fixture IDs; never resets user reminders or user data. */
@@ -15,9 +18,12 @@ internal object GoalInteractionSmoke {
     fun run(instrumentation: Instrumentation) {
         val targetContext = instrumentation.targetContext
         val directory = File(targetContext.cacheDir, "goal-smoke-${System.nanoTime()}").apply { mkdirs() }
+        val isolatedReminderPrefs = "goal-smoke-reminders-${System.nanoTime()}"
         val context = object : ContextWrapper(targetContext) {
             override fun getApplicationContext(): Context = this
             override fun getFilesDir(): File = directory
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                super.getSharedPreferences(if (name == "task_reminders") isolatedReminderPrefs else name, mode)
         }
         var failure: Throwable? = null
         var checks = 0
@@ -61,11 +67,24 @@ internal object GoalInteractionSmoke {
                     "Goal edit preserves status and AI state")
                 verify(GameStore.loadTasks() == listOf(task) + manualTasks, "Goal edit preserves its full task tree")
                 verify(GameStore.loadXP() == xpBefore, "Goal edit preserves historical rewards")
+                GameStore.updateTask(task.id, "已编辑完成的任务", null)
+                val editedTask = task.copy(title = "已编辑完成的任务", dueDate = null)
+                verify(GameStore.loadTasks().first() == editedTask, "Task editing preserves completion and identity")
+                verify(GameStore.loadXP() == xpBefore, "Task editing preserves historical XP")
+                val removed = GameStore.deleteTaskTree(manualTasks[3].id)
+                verify(removed == manualTasks.drop(3).map { it.id }.toSet(), "Deletion removes exactly the selected branch")
+                verify(GameStore.loadTasks() == listOf(editedTask) + manualTasks.take(3), "Deletion preserves ancestors and other tasks")
+                verify(GameStore.loadXP() == xpBefore, "Deletion preserves earned XP")
+                verify(TaskReminders.reminderTime(context) == LocalTime.of(8, 0), "Default reminder time is 08:00")
+                TaskReminders.setReminderTime(context, LocalTime.of(21, 35))
+                verify(TaskReminders.reminderTime(context) == LocalTime.of(21, 35), "Custom time persists in isolated preferences")
+                verify(!TaskReminders.isEnabled(context), "Choosing time does not enable reminders or schedule work when disabled")
             } catch (error: Throwable) {
                 failure = error
             } finally {
                 AppStorage.init(targetContext)
                 directory.deleteRecursively()
+                targetContext.deleteSharedPreferences(isolatedReminderPrefs)
             }
         }
         instrumentation.finish(if (failure == null) -1 else 0, Bundle().apply {

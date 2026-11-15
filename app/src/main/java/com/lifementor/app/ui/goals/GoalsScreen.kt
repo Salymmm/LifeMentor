@@ -49,6 +49,7 @@ import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
+import com.lifementor.app.data.taskBranchIds
 import com.lifementor.app.ui.components.TaskDateDialog
 import com.lifementor.app.ui.components.TaskDateAction
 
@@ -61,6 +62,8 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
     var editGoalId by rememberSaveable { mutableStateOf<Long?>(null) }
     var newTask by remember { mutableStateOf<NewTask?>(null) }
     var deleteGoalId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var editTaskId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var deleteTaskId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -75,6 +78,8 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
             }
             Button(onClick = { showAdd = true }) { Text("新增目标") }
         }
+        Text("点任务名称可编辑或删除", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
         vm.error.value?.let {
             Text(
                 it,
@@ -114,6 +119,7 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
                     GoalCard(
                         goal, vm,
                         onEdit = { editGoalId = goal.id },
+                        onEditTask = { editTaskId = it },
                         onAddTask = { parentId -> newTask = NewTask(goal.id, parentId) },
                         onDelete = { deleteGoalId = goal.id },
                     )
@@ -127,6 +133,7 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
                     GoalCard(
                         goal, vm,
                         onEdit = { editGoalId = goal.id },
+                        onEditTask = { editTaskId = it },
                         onAddTask = { parentId -> newTask = NewTask(goal.id, parentId) },
                         onDelete = { deleteGoalId = goal.id },
                     )
@@ -166,6 +173,32 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
             )
         }
     }
+    vm.tasks.find { it.id == editTaskId }?.let { task ->
+        val goal = vm.goals.find { it.id == task.goalId }
+        val parent = vm.tasks.find { it.id == task.parentId }
+        TaskEditorDialog(
+            parentTitle = parent?.title ?: goal?.title.orEmpty(),
+            isSubtask = task.parentId != null,
+            enabled = goal?.status == "active" && vm.decomposingId.value != task.goalId,
+            task = task,
+            onDismiss = { editTaskId = null },
+            onAdd = { title, date -> if (vm.updateTask(task.id, title, date)) editTaskId = null },
+            onDelete = { deleteTaskId = task.id },
+        )
+    }
+    vm.tasks.find { it.id == deleteTaskId }?.let { task ->
+        val children = taskBranchIds(vm.tasks, task.id).size - 1
+        AlertDialog(
+            onDismissRequest = { deleteTaskId = null },
+            title = { Text("删除任务？") },
+            text = { Text("将删除「${task.title}」${if (children > 0) "及其 $children 个子任务" else ""}。此操作不可撤销，已获得的经验值保留。") },
+            confirmButton = { TextButton(
+                enabled = vm.decomposingId.value != task.goalId,
+                onClick = { if (vm.deleteTask(task.id)) { deleteTaskId = null; editTaskId = null } },
+            ) { Text("确认删除", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { deleteTaskId = null }) { Text("取消") } },
+        )
+    }
     vm.goals.find { it.id == deleteGoalId }?.let { goal ->
         AlertDialog(
             onDismissRequest = { deleteGoalId = null },
@@ -187,6 +220,7 @@ private fun GoalCard(
     goal: Goal,
     vm: GoalsViewModel,
     onEdit: () -> Unit,
+    onEditTask: (Long) -> Unit,
     onAddTask: (Long?) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -293,6 +327,7 @@ private fun GoalCard(
                     val task = row.task
                     key(task.id) {
                         TaskRow(task, row.depth, vm, childCounts[task.id] ?: 0, canMutate,
+                            onEdit = { onEditTask(task.id) },
                             onAddSubtask = { onAddTask(task.id) })
                     }
                 }
@@ -308,6 +343,7 @@ private fun TaskRow(
     vm: GoalsViewModel,
     childCount: Int,
     canMutate: Boolean,
+    onEdit: () -> Unit,
     onAddSubtask: () -> Unit,
 ) {
     var showDatePicker by remember(t.id) { mutableStateOf(false) }
@@ -322,8 +358,10 @@ private fun TaskRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) }, enabled = canMutate)
-            Column(Modifier.weight(1f).clickable(enabled = textOverflows || textExpanded,
-                onClickLabel = if (textExpanded) "收起文字" else "展开全文") { textExpanded = !textExpanded }) {
+            Column(Modifier.weight(1f).clickable(enabled = canMutate || textOverflows || textExpanded,
+                onClickLabel = if (canMutate) "编辑「${t.title}」" else if (textExpanded) "收起文字" else "展开全文") {
+                if (canMutate) onEdit() else textExpanded = !textExpanded
+            }) {
                 if (depth > 3) {
                     Text("第 ${depth + 1} 层子任务", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -4,6 +4,7 @@ import com.lifementor.app.data.TaskItem
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
@@ -19,9 +20,9 @@ internal object ReminderPolicy {
     fun currentTask(tasks: List<TaskItem>, activeGoalIds: Set<Long>, taskId: Long, expectedDate: Long?): TaskItem? =
         tasks.find { it.id == taskId && it.dueDate == expectedDate && eligible(it, activeGoalIds) }
 
-    fun nextEightDelayMillis(now: ZonedDateTime): Long {
-        var next = now.toLocalDate().atTime(8, 0).atZone(now.zone)
-        if (!next.isAfter(now)) next = next.plusDays(1)
+    fun nextDelayMillis(now: ZonedDateTime, time: LocalTime = LocalTime.of(8, 0)): Long {
+        var next = now.toLocalDate().atTime(time).atZone(now.zone)
+        if (!next.isAfter(now)) next = now.toLocalDate().plusDays(1).atTime(time).atZone(now.zone)
         return Duration.between(now, next).toMillis()
     }
 

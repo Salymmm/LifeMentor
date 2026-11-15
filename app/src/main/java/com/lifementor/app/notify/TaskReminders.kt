@@ -24,6 +24,7 @@ import com.lifementor.app.data.TaskItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +43,14 @@ object TaskReminders {
     private fun snoozeName(taskId: Long) = "snooze_task:$taskId"
 
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean("enabled", false)
+
+    fun reminderTime(context: Context): LocalTime =
+        LocalTime.of(prefs(context).getInt("hour", 8), prefs(context).getInt("minute", 0))
+
+    fun setReminderTime(context: Context, time: LocalTime) {
+        prefs(context).edit().putInt("hour", time.hour).putInt("minute", time.minute).apply()
+        scheduleDaily(context, ExistingWorkPolicy.REPLACE)
+    }
 
     fun canPost(context: Context): Boolean =
         (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
@@ -84,7 +93,7 @@ object TaskReminders {
     internal fun scheduleDaily(context: Context, policy: ExistingWorkPolicy) {
         if (!isEnabled(context) || !canPost(context)) return
         val work = OneTimeWorkRequestBuilder<DailyReminderWorker>()
-            .setInitialDelay(ReminderPolicy.nextEightDelayMillis(ZonedDateTime.now()), TimeUnit.MILLISECONDS)
+            .setInitialDelay(ReminderPolicy.nextDelayMillis(ZonedDateTime.now(), reminderTime(context)), TimeUnit.MILLISECONDS)
             .addTag(WORK_TAG).build()
         WorkManager.getInstance(context).enqueueUniqueWork(DAILY_WORK, policy, work)
     }
@@ -97,7 +106,7 @@ object TaskReminders {
     internal fun showDaily(context: Context) {
         if (!isEnabled(context) || !canPost(context)) return
         ReminderPolicy.candidate(GameStore.loadTasks(), activeGoalIds(), LocalDate.now())?.let { show(context, it) }
-        // Append the next local 08:00 job, so DST changes do not turn this into a fixed 24-hour interval.
+        // Compute the next selected local time anew, including timezone/DST changes.
         scheduleDaily(context, ExistingWorkPolicy.APPEND_OR_REPLACE)
     }
 

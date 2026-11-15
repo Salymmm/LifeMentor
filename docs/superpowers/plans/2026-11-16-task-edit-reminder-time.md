@@ -1,0 +1,11 @@
+# Task editing/deletion and daily reminder time
+
+User authorizes editing/deleting individual tasks with a trash icon inside, plus custom daily reminder time. Continue existing feature branch inline; brainstorming/design choice: tap a task name to open its full title/date editor, with trash in that editor and explicit branch deletion confirmation. Existing compact calendar and plus actions remain. The task editor also provides a full-title view for ellipsized titles.
+
+- Add pure tested task editing and branch-ID selection; preserve relationships, completion, XP and other branches. Editing cancels outdated task notification/snooze; deletion cancels removed tasks' notifications/snoozes. Historical XP is retained.
+- Reuse creation dialog for editing; edit/save and trash available for active goals except during AI decomposition. Confirm named task plus descendant count before deletion.
+- Store one local daily hour/minute, default 08:00, use system time picker in settings. Changing it replaces only daily reminder work, preserves enable state and snoozes. Compute next nominal local date/time anew across DST; retain approximate WorkManager timing and existing candidate selection.
+- Test edit invariants, branch isolation/deep nesting and configurable scheduling boundaries/DST; build app/test APKs, run existing regressions, independent review and isolated device checks when available.
+- No AI prompt/parser/protocol/ChatViewModel/evaluator changes. No new dependencies or user-data reset.
+
+Verification complete: new edit/branch/time tests were observed failing before implementation; 84 JVM tests and 21 existing Python evaluator tests pass, both APKs build. Emulator goal_interactions mode passed 22 isolated checks, including persisted task edits, exact branch deletion, preserved XP, default 08:00 and custom 21:35 preferences without enabling reminders. Actual user files and reminder preferences had identical fingerprints before/after. Independent static review found and verified the fix for read-only long-title expansion; no remaining blocking findings. Enabled WorkManager replacement/chain execution and waiting for a real scheduled notification have not been exercised on device. Native visual preview remains unverified.

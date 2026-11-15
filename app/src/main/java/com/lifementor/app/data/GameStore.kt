@@ -84,6 +84,19 @@ object GameStore {
         TaskReminders.cancelTask(ctx, taskId)
     }
 
+    fun updateTask(taskId: Long, title: String, dueDate: Long?) {
+        saveTasks(loadTasks().map { if (it.id == taskId) it.edited(title, dueDate) else it })
+        TaskReminders.cancelTask(ctx, taskId)
+    }
+
+    fun deleteTaskTree(taskId: Long): Set<Long> {
+        val tasks = loadTasks()
+        val removed = taskBranchIds(tasks, taskId)
+        saveTasks(tasks.filter { it.id !in removed })
+        removed.forEach { TaskReminders.cancelTask(ctx, it) }
+        return removed
+    }
+
     /** 通知和今日任务使用只完成操作；重复点击不会撤销或重复奖励。 */
     fun completeTask(taskId: Long): Int {
         val tasks = loadTasks()

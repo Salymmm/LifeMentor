@@ -15,6 +15,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +32,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import com.lifementor.app.R
+import com.lifementor.app.data.TaskItem
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.ui.components.TaskDateDialog
@@ -106,14 +111,24 @@ internal fun TaskEditorDialog(
     enabled: Boolean,
     onDismiss: () -> Unit,
     onAdd: (String, Long?) -> Unit,
+    task: TaskItem? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
-    var title by remember { mutableStateOf("") }
-    var dueDate by remember { mutableStateOf<Long?>(null) }
+    var title by remember(task?.id) { mutableStateOf(task?.title ?: "") }
+    var dueDate by remember(task?.id) { mutableStateOf(task?.dueDate) }
     var showDatePicker by remember { mutableStateOf(false) }
     val label = if (isSubtask) "子任务" else "任务"
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("添加$label") },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (task == null) "添加$label" else "编辑$label", Modifier.weight(1f))
+                if (onDelete != null) IconButton(onClick = onDelete, enabled = enabled) {
+                    Icon(painterResource(R.drawable.ic_task_delete), contentDescription = "删除「${task?.title.orEmpty()}」",
+                        tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
@@ -146,7 +161,9 @@ internal fun TaskEditorDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onAdd(title.trim(), dueDate) }, enabled = enabled && title.isNotBlank()) { Text("添加") }
+            Button(onClick = { onAdd(title.trim(), dueDate) }, enabled = enabled && title.isNotBlank()) {
+                Text(if (task == null) "添加" else "保存")
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )

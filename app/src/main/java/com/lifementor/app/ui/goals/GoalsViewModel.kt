@@ -93,6 +93,20 @@ class GoalsViewModel : ViewModel() {
         refresh()
     }
 
+    fun updateTask(id: Long, title: String, dueDate: Long?): Boolean = try {
+        GameStore.updateTask(id, title, dueDate)
+        error.value = null
+        refresh()
+        true
+    } catch (e: Exception) { error.value = e.message ?: "保存任务失败，请重试"; false }
+
+    fun deleteTask(id: Long): Boolean = try {
+        GameStore.deleteTaskTree(id).forEach { expandedTasks.remove(it) }
+        error.value = null
+        refresh()
+        true
+    } catch (e: Exception) { error.value = e.message ?: "删除任务失败，请重试"; false }
+
     fun setDueDate(taskId: Long, dueDate: Long?) {
         try {
             GameStore.setTaskDueDate(taskId, dueDate)

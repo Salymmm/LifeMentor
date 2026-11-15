@@ -56,6 +56,11 @@ data class TaskItem(
 
     fun completed(at: Long): TaskItem = if (done) this else copy(done = true, doneAt = at)
 
+    fun edited(title: String, dueDate: Long?): TaskItem {
+        require(title.isNotBlank()) { "任务名称不能为空" }
+        return copy(title = title.trim(), dueDate = dueDate)
+    }
+
     companion object {
         fun manual(id: Long, goalId: Long, title: String, parent: TaskItem?, dueDate: Long? = null): TaskItem {
             require(title.isNotBlank()) { "任务名称不能为空" }

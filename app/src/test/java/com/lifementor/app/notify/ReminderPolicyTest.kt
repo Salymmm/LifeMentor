@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
@@ -72,8 +73,20 @@ class ReminderPolicyTest {
         )
 
         for ((now, expected) in cases) {
-            assertEquals(now, expected, ReminderPolicy.nextEightDelayMillis(ZonedDateTime.parse(now)))
+            assertEquals(now, expected, ReminderPolicy.nextDelayMillis(ZonedDateTime.parse(now)))
         }
+    }
+
+    @Test fun customTimeHonorsMinutesMidnightAndPassedOrExactTimes() {
+        assertEquals(15L * 60000, ReminderPolicy.nextDelayMillis(ZonedDateTime.parse("2026-11-16T18:30:00+08:00[Asia/Shanghai]"), LocalTime.of(18, 45)))
+        assertEquals(1439L * 60000, ReminderPolicy.nextDelayMillis(ZonedDateTime.parse("2026-11-16T18:46:00+08:00[Asia/Shanghai]"), LocalTime.of(18, 45)))
+        assertEquals(1440L * 60000, ReminderPolicy.nextDelayMillis(ZonedDateTime.parse("2026-11-16T18:45:00+08:00[Asia/Shanghai]"), LocalTime.of(18, 45)))
+        assertEquals(20L * 60000, ReminderPolicy.nextDelayMillis(ZonedDateTime.parse("2026-11-16T23:50:00+08:00[Asia/Shanghai]"), LocalTime.of(0, 10)))
+    }
+
+    @Test fun dayAfterDstGapReturnsToTheChosenNominalTime() {
+        assertEquals(1350L * 60000, ReminderPolicy.nextDelayMillis(
+            ZonedDateTime.parse("2026-03-08T04:00:00-04:00[America/New_York]"), LocalTime.of(2, 30)))
     }
 
     private fun current(tasks: List<TaskItem>, expected: TaskItem) =
