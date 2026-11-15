@@ -59,7 +59,7 @@ class TaskExecutionSmoke : Instrumentation() {
                 GameStore.addQuickAction(goal.id, "A manual task without any API key")
                 val task = GameStore.loadTasks().single()
                 verify(task.parentId == null && !goal.decomposed, "Manual task must not need an AI tree")
-                verify(task.dueDate == TaskAgenda.dateMillis(LocalDate.now()), "Manual task defaults to today")
+                verify(task.dueDate == null, "Manual task starts without an automatic date")
                 verify(GameStore.loadXP().isEmpty(), "Creation must not award XP")
 
                 val date = TaskAgenda.dateMillis(LocalDate.now().plusDays(1))

@@ -3,7 +3,6 @@ package com.lifementor.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.time.LocalDate
 import com.lifementor.app.notify.TaskReminders
 import androidx.compose.runtime.mutableIntStateOf
 
@@ -46,6 +45,10 @@ object GameStore {
         list.add(g)
         saveGoals(list)
         return g
+    }
+
+    fun updateGoal(id: Long, title: String, domain: String) {
+        saveGoals(loadGoals().map { if (it.id == id) it.edited(title, domain) else it })
     }
 
     fun setGoalDone(id: Long) {
@@ -120,11 +123,21 @@ object GameStore {
     }
 
     fun addQuickAction(goalId: Long, title: String) {
+        val anchor = loadTasks().lastOrNull { it.goalId == goalId && it.level == 2 }?.id
+        addTask(goalId, title, 3, anchor)
+    }
+
+    fun addTask(goalId: Long, title: String, level: Int, parentId: Long? = null, dueDate: Long? = null): TaskItem {
+        require(loadGoals().any { it.id == goalId && it.status == "active" }) { "请在进行中的目标下添加任务" }
         val tasks = loadTasks()
-        val anchor = tasks.lastOrNull { it.goalId == goalId && it.level == 2 }?.id
-        tasks.add(TaskItem(System.currentTimeMillis(), goalId, anchor, 3, title.trim(),
-            dueDate = TaskAgenda.dateMillis(LocalDate.now())))
+        val parent = parentId?.let { id ->
+            tasks.find { it.id == id } ?: throw IllegalArgumentException("上一级任务已不存在，请重新选择")
+        }
+        val id = maxOf(System.currentTimeMillis(), (tasks.maxOfOrNull { it.id } ?: 0L) + 1)
+        val task = TaskItem.manual(id, goalId, title, level, parent, dueDate)
+        tasks.add(task)
         saveTasks(tasks)
+        return task
     }
 
     fun deleteGoalTree(goalId: Long) {

@@ -64,6 +64,29 @@ class GoalsViewModel : ViewModel() {
         refresh()
     }
 
+    fun updateGoal(id: Long, title: String, domain: String) {
+        try {
+            GameStore.updateGoal(id, title, domain)
+            error.value = null
+            refresh()
+        } catch (e: Exception) { error.value = e.message ?: "保存目标失败，请重试" }
+    }
+
+    fun addTask(goalId: Long, title: String, level: Int, parentId: Long?, dueDate: Long?) {
+        try {
+            val task = GameStore.addTask(goalId, title, level, parentId, dueDate)
+            expanded[goalId] = true
+            if (level < 3) expandedTasks[task.id] = true
+            error.value = null
+            refresh()
+            var ancestorId = task.parentId
+            while (ancestorId != null) {
+                expandedTasks[ancestorId] = true
+                ancestorId = tasks.find { it.id == ancestorId }?.parentId
+            }
+        } catch (e: Exception) { error.value = e.message ?: "添加任务失败，请重试" }
+    }
+
     fun toggle(id: Long) {
         val got = GameStore.toggleTask(id)
         if (got > 0) xpToast.value = "⚡ +$got XP"
@@ -77,18 +100,6 @@ class GoalsViewModel : ViewModel() {
             refresh()
         } catch (e: Exception) {
             error.value = "保存任务日期失败，请重试"
-        }
-    }
-
-    fun quickAction(goalId: Long, title: String) {
-        if (title.isBlank()) return
-        GameStore.addQuickAction(goalId, title)
-        expanded[goalId] = true
-        refresh()
-        var parentId = tasks.lastOrNull { it.goalId == goalId }?.parentId
-        while (parentId != null) {
-            expandedTasks[parentId] = true
-            parentId = tasks.find { it.id == parentId }?.parentId
         }
     }
 

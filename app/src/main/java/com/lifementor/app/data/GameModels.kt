@@ -14,6 +14,11 @@ data class Goal(
     val createdAt: Long = System.currentTimeMillis(),
     val decomposed: Boolean = false,
 ) {
+    fun edited(title: String, domain: String): Goal {
+        require(title.isNotBlank()) { "目标名称不能为空" }
+        return copy(title = title.trim(), domain = domain)
+    }
+
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("title", title).put("domain", domain)
         .put("status", status).put("createdAt", createdAt).put("decomposed", decomposed)
@@ -52,6 +57,16 @@ data class TaskItem(
     fun completed(at: Long): TaskItem = if (done) this else copy(done = true, doneAt = at)
 
     companion object {
+        fun manual(id: Long, goalId: Long, title: String, level: Int, parent: TaskItem?, dueDate: Long? = null): TaskItem {
+            require(title.isNotBlank()) { "任务名称不能为空" }
+            require(level in 1..3) { "任务层级无效" }
+            require(parent != null || level != 2) { "请在里程碑下添加周任务" }
+            require(parent == null || (level > 1 && parent.level == level - 1 && parent.goalId == goalId)) {
+                "请选择同一目标下正确的上一级任务"
+            }
+            return TaskItem(id, goalId, parent?.id, level, title.trim(), dueDate = dueDate)
+        }
+
         fun from(o: JSONObject): TaskItem = TaskItem(
             o.getLong("id"), o.getLong("goalId"),
             if (o.isNull("parentId")) null else o.getLong("parentId"),
