@@ -80,6 +80,7 @@ class TaskExecutionSmoke : Instrumentation() {
                     "Snooze schedules one-hour work")
                 verify(notificationCountIs(0), "Snooze dismisses current notification")
                 TaskReminders.showTest(context)
+                verify(notificationCountIs(1), "Wait for the reposted notification before acting on it")
                 val revision = GameStore.taskRevision.intValue
                 val complete = Intent(context, TaskActionReceiver::class.java)
                     .setAction("com.lifementor.app.COMPLETE_TASK")
@@ -93,8 +94,8 @@ class TaskExecutionSmoke : Instrumentation() {
 
                 GameStore.addQuickAction(goal.id, "Reschedule smoke test")
                 val second = GameStore.loadTasks().last()
-                TaskReminders.showTest(context)
-                verify(notificationCountIs(1), "Next action can be reminded")
+                val nextMessage = TaskReminders.showTest(context)
+                verify(notificationCountIs(1), "Next action can be reminded: $nextMessage; active=${notifications.activeNotifications.map { it.tag }}")
                 val stale = Intent(context, TaskActionReceiver::class.java)
                     .setAction("com.lifementor.app.COMPLETE_TASK")
                     .putExtra("task_id", second.id).putExtra("due_date", second.dueDate.toString())
