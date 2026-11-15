@@ -31,6 +31,7 @@
 - 沿用当前 Kotlin、Compose、JSON 存储，不添加依赖，不迁移 Room。
 - 主要修改 `GameModels.kt`、`GameStore.kt`、`GoalsViewModel.kt`、`GoalsScreen.kt`；日期换算若需要复用，集中在一个小型日期工具中。
 - 不修改 B 的 `Prompts.kt`、`JsonExtract.kt`、评测脚本或聊天流程。
+- 用户再次明确：B 负责的 AI 功能发现问题时先询问，不自行修复。本次仅运行现有回归测试，不修改其实现。
 - 在新克隆的独立副本 `LifeMentor/` 的 `codex/task-dates` 分支工作，不推送远端。
 
 ## 验收

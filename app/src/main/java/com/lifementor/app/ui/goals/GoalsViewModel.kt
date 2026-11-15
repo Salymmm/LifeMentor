@@ -68,6 +68,16 @@ class GoalsViewModel : ViewModel() {
         refresh()
     }
 
+    fun setDueDate(taskId: Long, dueDate: Long?) {
+        try {
+            GameStore.setTaskDueDate(taskId, dueDate)
+            error.value = null
+            refresh()
+        } catch (e: Exception) {
+            error.value = "保存任务日期失败，请重试"
+        }
+    }
+
     fun quickAction(goalId: Long, title: String) {
         if (title.isBlank()) return
         GameStore.addQuickAction(goalId, title)

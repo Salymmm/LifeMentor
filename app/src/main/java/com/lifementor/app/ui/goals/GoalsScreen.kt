@@ -22,10 +22,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -198,6 +202,7 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
 
 @Composable
 private fun TaskRow(t: TaskItem, level: Int, vm: GoalsViewModel) {
+    var showDatePicker by remember(t.id) { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
@@ -207,11 +212,52 @@ private fun TaskRow(t: TaskItem, level: Int, vm: GoalsViewModel) {
         Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) })
         Text(
             t.title,
+            modifier = Modifier.weight(1f),
             fontSize = if (level == 1) 14.sp else 13.sp,
             fontWeight = if (level == 1) FontWeight.SemiBold else FontWeight.Normal,
             textDecoration = if (t.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
             color = if (t.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
         )
+        if (level in 2..3) {
+            TextButton(onClick = { showDatePicker = true }) {
+                Text(t.dueDateText() ?: "设置日期", fontSize = 12.sp, maxLines = 1)
+            }
+        }
+    }
+    if (showDatePicker) {
+        TaskDateDialog(
+            dueDate = t.dueDate,
+            onDismiss = { showDatePicker = false },
+            onSave = { date ->
+                vm.setDueDate(t.id, date)
+                showDatePicker = false
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TaskDateDialog(dueDate: Long?, onDismiss: () -> Unit, onSave: (Long?) -> Unit) {
+    val state = rememberDatePickerState(initialSelectedDateMillis = dueDate)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(state.selectedDateMillis) },
+                enabled = state.selectedDateMillis != null,
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            Row {
+                if (dueDate != null) {
+                    TextButton(onClick = { onSave(null) }) { Text("清除日期") }
+                }
+                TextButton(onClick = onDismiss) { Text("取消") }
+            }
+        },
+    ) {
+        DatePicker(state = state, showModeToggle = false)
     }
 }
 

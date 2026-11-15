@@ -2,6 +2,8 @@ package com.lifementor.app.data
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
+import java.time.ZoneOffset
 
 /** 目标（年度/长期愿景下的主线目标） */
 data class Goal(
@@ -34,12 +36,18 @@ data class TaskItem(
     val done: Boolean = false,
     val doneAt: Long? = null,
     val xpGiven: Boolean = false,
+    val dueDate: Long? = null, // 日历日期，以 UTC 零点毫秒值保存；不是提醒触发时刻
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("goalId", goalId)
         .put("parentId", if (parentId == null) JSONObject.NULL else parentId)
         .put("level", level).put("title", title)
         .put("done", done).put("doneAt", doneAt ?: JSONObject.NULL).put("xpGiven", xpGiven)
+        .put("dueDate", dueDate ?: JSONObject.NULL)
+
+    fun dueDateText(): String? = dueDate?.let {
+        Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
+    }
 
     companion object {
         fun from(o: JSONObject): TaskItem = TaskItem(
@@ -48,6 +56,7 @@ data class TaskItem(
             o.getInt("level"), o.optString("title"),
             o.optBoolean("done"), if (o.isNull("doneAt")) null else o.getLong("doneAt"),
             o.optBoolean("xpGiven"),
+            if (o.isNull("dueDate")) null else o.getLong("dueDate"),
         )
     }
 }

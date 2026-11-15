@@ -65,6 +65,10 @@ object GameStore {
         tasksFile.writeText(a.toString())
     }
 
+    fun setTaskDueDate(taskId: Long, dueDate: Long?) {
+        saveTasks(loadTasks().map { if (it.id == taskId) it.copy(dueDate = dueDate) else it })
+    }
+
     /** 勾选/取消勾选任务；首次完成时按档位发放 XP（只奖不罚，反悔不回收） */
     fun toggleTask(taskId: Long): Int {
         val tasks = loadTasks()
