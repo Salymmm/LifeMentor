@@ -24,7 +24,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -50,9 +52,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import java.time.LocalDate
 import java.time.ZonedDateTime
 import com.lifementor.app.ui.components.RadarChart
+import com.lifementor.app.ui.components.TaskDateDialog
 
 @Composable
 fun HomeScreen(
@@ -92,6 +94,7 @@ fun HomeScreen(
         }
     }
     val s = vm.snap.value
+    var dateTaskId by remember { mutableStateOf<Long?>(null) }
 
     Column(
         Modifier
@@ -155,11 +158,11 @@ fun HomeScreen(
         }
 
         vm.error.value?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        AgendaSection("今天", s.agenda.today, "今天没有已安排的行动", s.goalTitles, vm)
+        AgendaSection("今天", s.agenda.today, "今天没有已安排的行动", s.goalTitles, vm) { dateTaskId = it }
         TextButton(onClick = goGoals) { Text("添加行动 / 安排日期 →") }
-        AgendaSection("待重新安排", s.agenda.overdue, "没有需要重新安排的行动", s.goalTitles, vm)
-        AgendaSection("未来", s.agenda.future, "还没有未来的安排", s.goalTitles, vm)
-        AgendaSection("未安排", s.agenda.unscheduled, "所有行动都已安排日期", s.goalTitles, vm)
+        AgendaSection("待重新安排", s.agenda.overdue, "没有需要重新安排的行动", s.goalTitles, vm) { dateTaskId = it }
+        AgendaSection("未来", s.agenda.future, "还没有未来的安排", s.goalTitles, vm) { dateTaskId = it }
+        AgendaSection("未安排", s.agenda.unscheduled, "所有行动都已安排日期", s.goalTitles, vm) { dateTaskId = it }
 
         // 五维成长
         Card(Modifier.fillMaxWidth()) {
@@ -186,6 +189,21 @@ fun HomeScreen(
         TextButton(onClick = goMentors) { Text("找导师聊聊 →") }
         Spacer(Modifier.height(8.dp))
     }
+
+    val dateTask = s.agenda.run { today + overdue + future + unscheduled }
+        .find { it.id == dateTaskId }
+    if (dateTask != null) {
+        key(dateTask.id) {
+            TaskDateDialog(
+                dueDate = dateTask.dueDate,
+                onDismiss = { dateTaskId = null },
+                onSave = { date ->
+                    vm.setDueDate(dateTask, date)
+                    dateTaskId = null
+                },
+            )
+        }
+    }
 }
 
 @Composable
@@ -195,6 +213,7 @@ private fun AgendaSection(
     emptyText: String,
     goalTitles: Map<Long, String>,
     vm: HomeViewModel,
+    onSetDate: (Long) -> Unit,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
@@ -214,10 +233,9 @@ private fun AgendaSection(
                     }
                 }
                 Row(Modifier.padding(start = 36.dp)) {
-                    if (task.dueDate == null) {
-                        TextButton(onClick = { vm.schedule(task, LocalDate.now()) }) { Text("安排到今天") }
+                    TextButton(onClick = { onSetDate(task.id) }) {
+                        Text(if (task.dueDate == null) "设置日期" else "更改日期")
                     }
-                    TextButton(onClick = { vm.schedule(task, LocalDate.now().plusDays(1)) }) { Text("移到明天") }
                 }
             }
             if (tasks.isNotEmpty()) {

@@ -65,9 +65,9 @@ class HomeViewModel : ViewModel() {
         } catch (e: Exception) { error.value = "保存任务失败，请重试" }
     }
 
-    fun schedule(task: TaskItem, day: LocalDate) {
+    fun setDueDate(task: TaskItem, date: Long?) {
         try {
-            GameStore.setTaskDueDate(task.id, TaskAgenda.dateMillis(day))
+            GameStore.setTaskDueDate(task.id, date)
             error.value = null
             refresh()
         } catch (e: Exception) { error.value = "保存任务日期失败，请重试" }

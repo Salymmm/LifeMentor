@@ -36,6 +36,7 @@ class GoalsViewModel : ViewModel() {
     val error = mutableStateOf<String?>(null)
     val xpToast = mutableStateOf<String?>(null)
     val expanded = mutableStateMapOf<Long, Boolean>()
+    val expandedTasks = mutableStateMapOf<Long, Boolean>()
     private var decompositionJob: Job? = null
 
     init {
@@ -48,6 +49,7 @@ class GoalsViewModel : ViewModel() {
                 error.value = null
                 xpToast.value = null
                 expanded.clear()
+                expandedTasks.clear()
             }
         }
     }
@@ -83,6 +85,11 @@ class GoalsViewModel : ViewModel() {
         GameStore.addQuickAction(goalId, title)
         expanded[goalId] = true
         refresh()
+        var parentId = tasks.lastOrNull { it.goalId == goalId }?.parentId
+        while (parentId != null) {
+            expandedTasks[parentId] = true
+            parentId = tasks.find { it.id == parentId }?.parentId
+        }
     }
 
     fun completeGoal(id: Long) {
@@ -90,9 +97,16 @@ class GoalsViewModel : ViewModel() {
         refresh()
     }
 
+    fun reopenGoal(id: Long) {
+        GameStore.reopenGoal(id)
+        refresh()
+    }
+
     fun deleteGoal(id: Long) {
+        val taskIds = tasks.filter { it.goalId == id }.map { it.id }
         GameStore.deleteGoalTree(id)
         expanded.remove(id)
+        taskIds.forEach { expandedTasks.remove(it) }
         refresh()
     }
 

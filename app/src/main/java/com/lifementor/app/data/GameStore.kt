@@ -53,6 +53,10 @@ object GameStore {
         loadTasks().filter { it.goalId == id }.forEach { TaskReminders.cancelTask(ctx, it.id) }
     }
 
+    fun reopenGoal(id: Long) {
+        saveGoals(loadGoals().map { if (it.id == id) it.copy(status = "active") else it })
+    }
+
     fun markDecomposed(id: Long) {
         saveGoals(loadGoals().map { if (it.id == id) it.copy(decomposed = true) else it })
     }

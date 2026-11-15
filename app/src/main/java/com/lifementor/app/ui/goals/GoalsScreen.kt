@@ -22,36 +22,37 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
+import com.lifementor.app.ui.components.TaskDateDialog
 
 @Composable
 fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
     LaunchedEffect(GameStore.taskRevision.intValue) { vm.refresh() }
     var showAdd by remember { mutableStateOf(false) }
     var quickAddGoalId by remember { mutableStateOf<Long?>(null) }
+    var deleteGoalId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -98,7 +99,7 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
                 }
             }
             items(active + done, key = { it.id }) { goal ->
-                GoalCard(goal, vm, onQuickAdd = { quickAddGoalId = goal.id })
+                GoalCard(goal, vm, onQuickAdd = { quickAddGoalId = goal.id }, onDelete = { deleteGoalId = goal.id })
             }
         }
     }
@@ -112,10 +113,21 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
     quickAddGoalId?.let { gid ->
         QuickActionDialog(onDismiss = { quickAddGoalId = null }, onAdd = { t -> vm.quickAction(gid, t); quickAddGoalId = null })
     }
+    vm.goals.find { it.id == deleteGoalId }?.let { goal ->
+        AlertDialog(
+            onDismissRequest = { deleteGoalId = null },
+            title = { Text("删除目标？") },
+            text = { Text("将删除「${goal.title}」及其中的 ${vm.tasks.count { it.goalId == goal.id }} 项任务。此操作不可撤销。") },
+            confirmButton = {
+                TextButton(onClick = { vm.deleteGoal(goal.id); deleteGoalId = null }) { Text("确认删除") }
+            },
+            dismissButton = { TextButton(onClick = { deleteGoalId = null }) { Text("取消") } },
+        )
+    }
 }
 
 @Composable
-private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQuickAdd: () -> Unit) {
+private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQuickAdd: () -> Unit, onDelete: () -> Unit) {
     val mentor = Mentors.byId(goal.domain)
     val sub = vm.tasks.filter { it.goalId == goal.id }
     val isDecomposing = vm.decomposingId.value == goal.id
@@ -163,7 +175,7 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
             }
 
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (!goal.decomposed) {
+                if (goal.status == "active" && !goal.decomposed) {
                     Button(onClick = { vm.decompose(goal.id) }, enabled = !vm.busy.value) {
                         if (isDecomposing) {
                             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -176,29 +188,25 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                 }
                 Spacer(Modifier.width(6.dp))
                 if (goal.status == "active") {
-                    TextButton(onClick = onQuickAdd) { Text("+ 添加行动") }
+                    TextButton(onClick = onQuickAdd, enabled = !isDecomposing) { Text("+ 添加行动") }
                 }
                 Spacer(Modifier.weight(1f))
                 if (goal.status == "active") {
-                    TextButton(onClick = { vm.completeGoal(goal.id) }) { Text("完成") }
+                    TextButton(onClick = { vm.completeGoal(goal.id) }, enabled = !isDecomposing) { Text("完成") }
+                } else {
+                    TextButton(onClick = { vm.reopenGoal(goal.id) }) { Text("撤回完成") }
                 }
-                TextButton(onClick = { vm.deleteGoal(goal.id) }) { Text("删除") }
+                TextButton(onClick = onDelete, enabled = !isDecomposing) { Text("删除") }
             }
 
             if (open && sub.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                val ms = sub.filter { it.level == 1 }
-                ms.forEach { m ->
-                    TaskRow(m, level = 1, vm = vm)
-                    sub.filter { it.level == 2 && it.parentId == m.id }.forEach { w ->
-                        TaskRow(w, level = 2, vm = vm)
-                        sub.filter { it.level == 3 && it.parentId == w.id }.forEach { d ->
-                            TaskRow(d, level = 3, vm = vm)
-                        }
+                val expandedIds = vm.expandedTasks.filterValues { it }.keys
+                visibleTaskRows(sub, expandedIds).forEach { task ->
+                    key(task.id) {
+                        TaskRow(task, level = task.level, vm = vm,
+                            childCount = sub.count { it.parentId == task.id })
                     }
-                }
-                sub.filter { it.level == 3 && it.parentId == null }.forEach { task ->
-                    TaskRow(task, level = 3, vm = vm)
                 }
             }
         }
@@ -206,27 +214,46 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
 }
 
 @Composable
-private fun TaskRow(t: TaskItem, level: Int, vm: GoalsViewModel) {
+private fun TaskRow(t: TaskItem, level: Int, vm: GoalsViewModel, childCount: Int) {
     var showDatePicker by remember(t.id) { mutableStateOf(false) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(start = ((level - 1) * 14).dp, top = 1.dp, bottom = 1.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) })
-        Text(
-            t.title,
-            modifier = Modifier.weight(1f),
-            fontSize = if (level == 1) 14.sp else 13.sp,
-            fontWeight = if (level == 1) FontWeight.SemiBold else FontWeight.Normal,
-            textDecoration = if (t.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-            color = if (t.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-        )
-        if (level in 2..3) {
-            TextButton(onClick = { showDatePicker = true }) {
-                Text(t.dueDateText() ?: "设置日期", fontSize = 12.sp, maxLines = 1)
+    var textExpanded by rememberSaveable(t.id) { mutableStateOf(false) }
+    var textOverflows by remember(t.id, t.title) { mutableStateOf(false) }
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = ((level - 1) * 14).dp, top = 1.dp, bottom = 1.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) })
+            Text(
+                t.title,
+                modifier = Modifier.weight(1f),
+                fontSize = if (level == 1) 14.sp else 13.sp,
+                fontWeight = if (level == 1) FontWeight.SemiBold else FontWeight.Normal,
+                textDecoration = if (t.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                color = if (t.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                maxLines = if (textExpanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (!textExpanded) textOverflows = it.hasVisualOverflow },
+            )
+            if (childCount > 0) {
+                val open = vm.expandedTasks[t.id] == true
+                TextButton(onClick = { vm.expandedTasks[t.id] = !open }) {
+                    Text(if (open) "收起" else "展开 $childCount", fontSize = 12.sp, maxLines = 1)
+                }
             }
+            if (level in 2..3) {
+                TextButton(onClick = { showDatePicker = true }) {
+                    Text(t.dueDateText() ?: "设置日期", fontSize = 12.sp, maxLines = 1)
+                }
+            }
+        }
+        if (textOverflows || textExpanded) {
+            TextButton(
+                onClick = { textExpanded = !textExpanded },
+                modifier = Modifier.padding(start = ((level - 1) * 14 + 48).dp),
+            ) { Text(if (textExpanded) "收起文字" else "展开全文", fontSize = 12.sp) }
         }
     }
     if (showDatePicker) {
@@ -238,31 +265,6 @@ private fun TaskRow(t: TaskItem, level: Int, vm: GoalsViewModel) {
                 showDatePicker = false
             },
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TaskDateDialog(dueDate: Long?, onDismiss: () -> Unit, onSave: (Long?) -> Unit) {
-    val state = rememberDatePickerState(initialSelectedDateMillis = dueDate)
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(state.selectedDateMillis) },
-                enabled = state.selectedDateMillis != null,
-            ) { Text("保存") }
-        },
-        dismissButton = {
-            Row {
-                if (dueDate != null) {
-                    TextButton(onClick = { onSave(null) }) { Text("清除日期") }
-                }
-                TextButton(onClick = onDismiss) { Text("取消") }
-            }
-        },
-    ) {
-        DatePicker(state = state, showModeToggle = false)
     }
 }
 
