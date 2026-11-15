@@ -72,11 +72,11 @@ class GoalsViewModel : ViewModel() {
         } catch (e: Exception) { error.value = e.message ?: "保存目标失败，请重试" }
     }
 
-    fun addTask(goalId: Long, title: String, level: Int, parentId: Long?, dueDate: Long?) {
+    fun addTask(goalId: Long, title: String, parentId: Long?, dueDate: Long?) {
         try {
-            val task = GameStore.addTask(goalId, title, level, parentId, dueDate)
+            val task = GameStore.addTask(goalId, title, parentId, dueDate)
             expanded[goalId] = true
-            if (level < 3) expandedTasks[task.id] = true
+            expandedTasks[task.id] = true
             error.value = null
             refresh()
             var ancestorId = task.parentId

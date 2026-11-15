@@ -44,6 +44,23 @@ internal object GoalInteractionSmoke {
                 GameStore.reopenGoal(goal.id)
                 verify(GameStore.loadXP() == xpBefore, "Repeated undo does not duplicate rewards")
                 verify(GameStore.loadTasks().single() == task, "Repeated undo preserves task progress")
+                var parentId: Long? = null
+                val manualTasks = (1..8).map { depth ->
+                    GameStore.addTask(goal.id, "手动子任务 $depth", parentId,
+                        if (depth == 8) 1794787200000L else null).also { parentId = it.id }
+                }
+                verify(manualTasks.first().parentId == null, "Root manual task has no parent")
+                verify(manualTasks.zipWithNext().all { (parent, child) -> child.parentId == parent.id },
+                    "Manual subtasks keep all eight parent relationships")
+                verify(manualTasks.all { it.level == 3 }, "Manual nesting preserves action rewards at every depth")
+                verify(manualTasks.first().dueDate == null && manualTasks.last().dueDate == 1794787200000L,
+                    "Dates remain optional and independent of nesting")
+                verify(GameStore.loadTasks() == listOf(task) + manualTasks, "Chinese hierarchy and dates survive storage")
+                GameStore.updateGoal(goal.id, "新的中文目标", "scholar")
+                verify(GameStore.loadGoals().single() == goal.copy(title = "新的中文目标", domain = "scholar"),
+                    "Goal edit preserves status and AI state")
+                verify(GameStore.loadTasks() == listOf(task) + manualTasks, "Goal edit preserves its full task tree")
+                verify(GameStore.loadXP() == xpBefore, "Goal edit preserves historical rewards")
             } catch (error: Throwable) {
                 failure = error
             } finally {
@@ -53,7 +70,7 @@ internal object GoalInteractionSmoke {
         }
         instrumentation.finish(if (failure == null) -1 else 0, Bundle().apply {
             putString("stream", failure?.let { "FAIL after $checks checks: ${it.stackTraceToString()}" }
-                ?: "PASS: $checks isolated goal undo checks")
+                ?: "PASS: $checks isolated goal interaction checks")
         })
     }
 }

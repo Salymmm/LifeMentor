@@ -31,7 +31,7 @@ data class Goal(
     }
 }
 
-/** 任务树节点：level 1=季度里程碑 2=周任务 3=每日行动 */
+/** 任务树节点：parentId 表示层级；level 保留原有奖励档位，手动任务统一使用行动档位 3。 */
 data class TaskItem(
     val id: Long,
     val goalId: Long,
@@ -57,14 +57,10 @@ data class TaskItem(
     fun completed(at: Long): TaskItem = if (done) this else copy(done = true, doneAt = at)
 
     companion object {
-        fun manual(id: Long, goalId: Long, title: String, level: Int, parent: TaskItem?, dueDate: Long? = null): TaskItem {
+        fun manual(id: Long, goalId: Long, title: String, parent: TaskItem?, dueDate: Long? = null): TaskItem {
             require(title.isNotBlank()) { "任务名称不能为空" }
-            require(level in 1..3) { "任务层级无效" }
-            require(parent != null || level != 2) { "请在里程碑下添加周任务" }
-            require(parent == null || (level > 1 && parent.level == level - 1 && parent.goalId == goalId)) {
-                "请选择同一目标下正确的上一级任务"
-            }
-            return TaskItem(id, goalId, parent?.id, level, title.trim(), dueDate = dueDate)
+            require(parent == null || parent.goalId == goalId) { "请选择同一目标下的上一级任务" }
+            return TaskItem(id, goalId, parent?.id, 3, title.trim(), dueDate = dueDate)
         }
 
         fun from(o: JSONObject): TaskItem = TaskItem(

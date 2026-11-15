@@ -124,17 +124,17 @@ object GameStore {
 
     fun addQuickAction(goalId: Long, title: String) {
         val anchor = loadTasks().lastOrNull { it.goalId == goalId && it.level == 2 }?.id
-        addTask(goalId, title, 3, anchor)
+        addTask(goalId, title, anchor)
     }
 
-    fun addTask(goalId: Long, title: String, level: Int, parentId: Long? = null, dueDate: Long? = null): TaskItem {
+    fun addTask(goalId: Long, title: String, parentId: Long? = null, dueDate: Long? = null): TaskItem {
         require(loadGoals().any { it.id == goalId && it.status == "active" }) { "请在进行中的目标下添加任务" }
         val tasks = loadTasks()
         val parent = parentId?.let { id ->
             tasks.find { it.id == id } ?: throw IllegalArgumentException("上一级任务已不存在，请重新选择")
         }
         val id = maxOf(System.currentTimeMillis(), (tasks.maxOfOrNull { it.id } ?: 0L) + 1)
-        val task = TaskItem.manual(id, goalId, title, level, parent, dueDate)
+        val task = TaskItem.manual(id, goalId, title, parent, dueDate)
         tasks.add(task)
         saveTasks(tasks)
         return task

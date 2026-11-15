@@ -101,9 +101,8 @@ internal fun GoalEditorDialog(
 
 @Composable
 internal fun TaskEditorDialog(
-    level: Int,
     parentTitle: String,
-    parentLabel: String,
+    isSubtask: Boolean,
     enabled: Boolean,
     onDismiss: () -> Unit,
     onAdd: (String, Long?) -> Unit,
@@ -111,18 +110,14 @@ internal fun TaskEditorDialog(
     var title by remember { mutableStateOf("") }
     var dueDate by remember { mutableStateOf<Long?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    val label = when (level) {
-        1 -> "里程碑"
-        2 -> "周任务"
-        else -> "行动"
-    }
+    val label = if (isSubtask) "子任务" else "任务"
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("添加$label") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    "$parentLabel：$parentTitle",
+                    "${if (isSubtask) "所属任务" else "所属目标"}：$parentTitle",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

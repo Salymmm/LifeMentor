@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,7 +51,7 @@ import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
 import com.lifementor.app.ui.components.TaskDateDialog
 
-private data class NewTask(val goalId: Long, val level: Int, val parentId: Long?)
+private data class NewTask(val goalId: Long, val parentId: Long?)
 
 @Composable
 fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
@@ -112,7 +113,7 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
                     GoalCard(
                         goal, vm,
                         onEdit = { editGoalId = goal.id },
-                        onAddTask = { level, parentId -> newTask = NewTask(goal.id, level, parentId) },
+                        onAddTask = { parentId -> newTask = NewTask(goal.id, parentId) },
                         onDelete = { deleteGoalId = goal.id },
                     )
                 }
@@ -125,7 +126,7 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
                     GoalCard(
                         goal, vm,
                         onEdit = { editGoalId = goal.id },
-                        onAddTask = { level, parentId -> newTask = NewTask(goal.id, level, parentId) },
+                        onAddTask = { parentId -> newTask = NewTask(goal.id, parentId) },
                         onDelete = { deleteGoalId = goal.id },
                     )
                 }
@@ -153,17 +154,12 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
         vm.goals.find { it.id == request.goalId }?.let { goal ->
             val parent = vm.tasks.find { it.id == request.parentId && it.goalId == goal.id }
             TaskEditorDialog(
-                level = request.level,
                 parentTitle = parent?.title ?: goal.title,
-                parentLabel = when (parent?.level) {
-                    1 -> "所属里程碑"
-                    2 -> "所属周任务"
-                    else -> "所属目标"
-                },
+                isSubtask = request.parentId != null,
                 enabled = goal.status == "active" && vm.decomposingId.value != goal.id,
                 onDismiss = { newTask = null },
                 onAdd = { title, date ->
-                    vm.addTask(goal.id, title, request.level, request.parentId, date)
+                    vm.addTask(goal.id, title, request.parentId, date)
                     newTask = null
                 },
             )
@@ -190,7 +186,7 @@ private fun GoalCard(
     goal: Goal,
     vm: GoalsViewModel,
     onEdit: () -> Unit,
-    onAddTask: (Int, Long?) -> Unit,
+    onAddTask: (Long?) -> Unit,
     onDelete: () -> Unit,
 ) {
     val mentor = Mentors.byId(goal.domain)
@@ -200,7 +196,6 @@ private fun GoalCard(
     val canMutate = active && !isDecomposing
     val open = vm.expanded[goal.id] ?: !goal.decomposed
     var showManagement by remember(goal.id) { mutableStateOf(false) }
-    var showPlanning by remember(goal.id) { mutableStateOf(false) }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
@@ -285,39 +280,19 @@ private fun GoalCard(
                         }
                         Spacer(Modifier.width(6.dp))
                     }
-                    Box {
-                        TextButton(onClick = { showPlanning = true }, enabled = canMutate) { Text("手动规划") }
-                        DropdownMenu(expanded = showPlanning, onDismissRequest = { showPlanning = false }) {
-                            DropdownMenuItem(
-                                text = { Text("添加里程碑") },
-                                enabled = canMutate,
-                                onClick = { showPlanning = false; onAddTask(1, null) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("添加独立行动") },
-                                enabled = canMutate,
-                                onClick = { showPlanning = false; onAddTask(3, null) },
-                            )
-                        }
-                    }
+                    TextButton(onClick = { onAddTask(null) }, enabled = canMutate) { Text("添加任务") }
                 }
             }
 
             if (open && sub.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 val expandedIds = vm.expandedTasks.filterValues { it }.keys
-                visibleTaskRows(sub, expandedIds).forEach { task ->
+                val childCounts = sub.groupingBy { it.parentId }.eachCount()
+                visibleTaskRows(sub, expandedIds).forEach { row ->
+                    val task = row.task
                     key(task.id) {
-                        val depth = if (task.parentId == null) 0 else task.level - 1
-                        val childCount = sub.count { it.parentId == task.id }
-                        val canAddChild = canMutate && task.level in 1..2
-                        TaskRow(task, depth, vm, childCount, canMutate, canExpand = childCount > 0 || canAddChild)
-                        if (canAddChild && task.id in expandedIds) {
-                            TextButton(
-                                onClick = { onAddTask(task.level + 1, task.id) },
-                                modifier = Modifier.padding(start = ((depth + 1) * 14 + 48).dp),
-                            ) { Text(if (task.level == 1) "+ 添加周任务" else "+ 添加行动", fontSize = 12.sp) }
-                        }
+                        TaskRow(task, row.depth, vm, childCounts[task.id] ?: 0, canMutate,
+                            onAddSubtask = { onAddTask(task.id) })
                     }
                 }
             }
@@ -332,46 +307,49 @@ private fun TaskRow(
     vm: GoalsViewModel,
     childCount: Int,
     canMutate: Boolean,
-    canExpand: Boolean,
+    onAddSubtask: () -> Unit,
 ) {
     var showDatePicker by remember(t.id) { mutableStateOf(false) }
     var textExpanded by rememberSaveable(t.id) { mutableStateOf(false) }
     var textOverflows by remember(t.id, t.title) { mutableStateOf(false) }
+    val indent = depth.coerceAtMost(3) * 12
     Column {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = (depth * 14).dp, top = 1.dp, bottom = 1.dp),
+                .padding(start = indent.dp, top = 1.dp, bottom = 1.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) }, enabled = canMutate)
-            Text(
-                t.title,
-                modifier = Modifier.weight(1f),
-                fontSize = if (t.level == 1) 14.sp else 13.sp,
-                fontWeight = if (t.level == 1) FontWeight.SemiBold else FontWeight.Normal,
-                textDecoration = if (t.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                color = if (t.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                maxLines = if (textExpanded) Int.MAX_VALUE else 2,
-                overflow = TextOverflow.Ellipsis,
-                onTextLayout = { if (!textExpanded) textOverflows = it.hasVisualOverflow },
-            )
-            if (canExpand) {
+            Column(Modifier.weight(1f)) {
+                if (depth > 3) {
+                    Text("第 ${depth + 1} 层子任务", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(
+                    t.title,
+                    fontSize = if (depth == 0) 14.sp else 13.sp,
+                    fontWeight = if (depth == 0) FontWeight.SemiBold else FontWeight.Normal,
+                    textDecoration = if (t.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                    color = if (t.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    maxLines = if (textExpanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { if (!textExpanded) textOverflows = it.hasVisualOverflow },
+                )
+            }
+            if (childCount > 0) {
                 val open = vm.expandedTasks[t.id] == true
                 TextButton(onClick = { vm.expandedTasks[t.id] = !open }) {
-                    Text(if (open) "收起" else if (childCount > 0) "展开 $childCount" else "展开", fontSize = 12.sp, maxLines = 1)
+                    Text(if (open) "收起" else "展开 $childCount", fontSize = 12.sp, maxLines = 1)
                 }
             }
         }
-        Row(Modifier.padding(start = (depth * 14 + 48).dp)) {
-            Text(
-                when (t.level) { 1 -> "里程碑"; 2 -> "周任务"; else -> "行动" },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.CenterVertically).padding(end = 4.dp),
-            )
+        FlowRow(Modifier.padding(start = (indent + 48).dp)) {
             TextButton(onClick = { showDatePicker = true }, enabled = canMutate) {
                 Text(t.dueDateText() ?: "安排日期", fontSize = 12.sp, maxLines = 1)
+            }
+            if (canMutate) {
+                TextButton(onClick = onAddSubtask) { Text("添加子任务", fontSize = 12.sp) }
             }
             if (textOverflows || textExpanded) {
                 TextButton(onClick = { textExpanded = !textExpanded }) {
