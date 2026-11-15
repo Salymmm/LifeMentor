@@ -1,6 +1,6 @@
 # Manual Task Dates Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Let users persist, edit and clear a calendar date on weekly and daily tasks.
 
@@ -34,10 +34,14 @@
 - Consumes: `GameStore.loadTasks(): MutableList<TaskItem>` and `saveTasks(List<TaskItem>)`.
 - Produces: `TaskItem.dueDate: Long?`, `TaskItem.dueDateText(): String?`, `GameStore.setTaskDueDate(taskId: Long, dueDate: Long?)`, `GoalsViewModel.setDueDate(taskId: Long, dueDate: Long?)`.
 
-- [ ] Write tests using hand-built legacy JSON and dated JSON; run them against the original model and observe lost dates.
-- [ ] Append dueDate, preserve it in JSON read/write, then rerun the tests.
-- [ ] Add tests for clear/copy and stable ISO display under UTC-8 and UTC+14; implement `dueDateText()` using UTC.
-- [ ] Add the store update, ViewModel action and date dialog. Save only on explicit confirmation; cancel changes nothing. Give the title remaining row width and retain the date button.
-- [ ] Run `gradlew.bat testDebugUnitTest assembleDebug --console=plain` from a temporary ASCII drive mapping, `python -B -m unittest tools.test_evaluate_decomposition -q`, and `git diff --check`.
-- [ ] In a disposable/read-only emulator run, verify select, change, cancel, clear and restart persistence; record any unavailable checks.
-- [ ] Review the diff, commit the completed change locally, and remove the temporary drive mapping.
+- [x] Write tests using hand-built legacy JSON and dated JSON; run them against the original model and observe lost dates.
+- [x] Append dueDate, preserve it in JSON read/write, then rerun the tests.
+- [x] Add tests for clear/copy and stable ISO display under UTC-8 and UTC+14; implement `dueDateText()` using UTC.
+- [x] Add the store update, ViewModel action and date dialog. Save only on explicit confirmation; cancel changes nothing. Give the title remaining row width and retain the date button.
+- [x] Run `gradlew.bat testDebugUnitTest assembleDebug --console=plain` from a temporary ASCII drive mapping, `python -B -m unittest tools.test_evaluate_decomposition -q`, and `git diff --check`.
+- [x] In a disposable/read-only emulator run, verify select, change, cancel, clear and restart persistence; record any unavailable checks.
+- [x] Review the diff, commit the completed change locally, and remove the temporary drive mapping.
+
+## Verification result
+
+53 JVM tests and 21 Python tests passed; assembleDebug and git diff --check passed. Independent read-only review found no actionable issues and confirmed B's AI implementation is unchanged. Emulator startup succeeded, but the device repeatedly exited before interaction checks could complete; rendered layout, picker interactions and process-restart persistence remain unverified.
