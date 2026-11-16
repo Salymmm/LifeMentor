@@ -97,6 +97,13 @@ internal object GoalInteractionSmoke {
                 calendar.toggle(calendarTaskId)
                 verify(GameStore.loadXP().sumOf { it.amount } == xpTotal + 10,
                     "Calendar undo/recompletion does not duplicate rewards")
+                verify(GameStore.loadCalendarSyncSource().tasks == GameStore.loadTasks(), "Bulk sync reads a complete source snapshot")
+                val taskFile = File(directory, "tasks.json")
+                val savedTasks = taskFile.readText()
+                taskFile.writeText("{broken JSON")
+                val rejectsCorruptSource = runCatching { GameStore.loadCalendarSyncSource() }.isFailure
+                taskFile.writeText(savedTasks)
+                verify(rejectsCorruptSource, "Corrupt source aborts sync instead of deleting all events")
             } catch (error: Throwable) {
                 failure = error
             } finally {

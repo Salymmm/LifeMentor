@@ -72,6 +72,16 @@ object GameStore {
         mutableListOf()
     }
 
+    /** 批量同步包含删除操作，读取错误必须抛出，不能按空任务列表处理。调用方在主线程取快照。 */
+    fun loadCalendarSyncSource(): CalendarSyncSource {
+        val goals = JSONArray(if (goalsFile.exists()) goalsFile.readText() else "[]")
+        val tasks = JSONArray(if (tasksFile.exists()) tasksFile.readText() else "[]")
+        return CalendarSyncSource(
+            (0 until goals.length()).map { Goal.from(goals.getJSONObject(it)) },
+            (0 until tasks.length()).map { TaskItem.from(tasks.getJSONObject(it)) },
+        )
+    }
+
     fun saveTasks(list: List<TaskItem>) {
         val a = JSONArray()
         list.forEach { a.put(it.toJson()) }

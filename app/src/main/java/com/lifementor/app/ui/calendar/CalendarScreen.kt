@@ -119,6 +119,9 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
             }
         }
         item {
+            CalendarSyncPanel()
+        }
+        item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -171,7 +174,7 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("$selectedDay · ${dayTasks.size} 项 · 已完成 ${dayTasks.count { it.done }}",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("日历图标改日期，↗ 添加到手机日历。需在手机日历中确认保存，后续修改需分别处理。",
+            Text("日历图标改日期。↗ 是手动添加，不参与批量更新；批量同步请用上方按钮。",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         vm.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
