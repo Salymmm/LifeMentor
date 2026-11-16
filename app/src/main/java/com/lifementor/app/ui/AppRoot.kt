@@ -21,6 +21,7 @@ import com.lifementor.app.ui.home.HomeScreen
 import com.lifementor.app.ui.mentors.MentorsTab
 import com.lifementor.app.ui.onboarding.OnboardingScreen
 import com.lifementor.app.ui.settings.SettingsScreen
+import com.lifementor.app.ui.calendar.CalendarScreen
 
 private enum class HomeTab { HOME, GOALS, MENTORS, ARCHIVE, SETTINGS }
 
@@ -33,6 +34,7 @@ fun AppRoot() {
     }
 
     var tab by rememberSaveable { mutableStateOf(HomeTab.HOME) }
+    var showCalendar by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -46,7 +48,7 @@ fun AppRoot() {
                 items.forEach { (t, emoji, label) ->
                     NavigationBarItem(
                         selected = tab == t,
-                        onClick = { tab = t },
+                        onClick = { tab = t; showCalendar = false },
                         icon = { Text(emoji, fontSize = 22.sp) },
                         label = { Text(label) },
                     )
@@ -55,9 +57,13 @@ fun AppRoot() {
         }
     ) { insets ->
         Box(Modifier.fillMaxSize().padding(insets)) {
-            when (tab) {
-                HomeTab.HOME -> HomeScreen(goGoals = { tab = HomeTab.GOALS }, goMentors = { tab = HomeTab.MENTORS })
-                HomeTab.GOALS -> GoalsScreen()
+            if (showCalendar) CalendarScreen(
+                onBack = { showCalendar = false },
+                goGoals = { showCalendar = false; tab = HomeTab.GOALS },
+            ) else when (tab) {
+                HomeTab.HOME -> HomeScreen(goGoals = { tab = HomeTab.GOALS }, goMentors = { tab = HomeTab.MENTORS },
+                    goCalendar = { showCalendar = true })
+                HomeTab.GOALS -> GoalsScreen(onOpenCalendar = { showCalendar = true })
                 HomeTab.MENTORS -> MentorsTab()
                 HomeTab.ARCHIVE -> ArchiveScreen(goSettings = { tab = HomeTab.SETTINGS })
                 HomeTab.SETTINGS -> SettingsScreen(onRedoOnboarding = { onboarded = false })

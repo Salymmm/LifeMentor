@@ -20,11 +20,13 @@ import java.time.LocalDate
 /** Device acceptance checks using isolated files and preferences; no test library required. */
 class TaskExecutionSmoke : Instrumentation() {
     private var goalInteractionsOnly = false
+    private var calendarOnly = false
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         goalInteractionsOnly = arguments?.getString("goal_interactions") == "true"
-        if (!goalInteractionsOnly && arguments?.getString("disposable") != "true") {
+        calendarOnly = arguments?.getString("calendar_view") == "true"
+        if (!goalInteractionsOnly && !calendarOnly && arguments?.getString("disposable") != "true") {
             finish(0, Bundle().apply {
                 putString("stream", "REFUSED: use -e disposable true only on a throwaway emulator; this test cancels app-wide reminders.")
             })
@@ -34,6 +36,7 @@ class TaskExecutionSmoke : Instrumentation() {
     }
 
     override fun onStart() {
+        if (calendarOnly) { CalendarSmoke.run(this); return }
         if (goalInteractionsOnly) {
             GoalInteractionSmoke.run(this)
             return

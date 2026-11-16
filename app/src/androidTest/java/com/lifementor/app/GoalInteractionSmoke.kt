@@ -10,6 +10,9 @@ import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.TaskItem
 import com.lifementor.app.notify.TaskReminders
+import com.lifementor.app.data.TaskAgenda
+import com.lifementor.app.ui.calendar.CalendarViewModel
+import java.time.LocalDate
 import java.time.LocalTime
 import java.io.File
 
@@ -79,6 +82,21 @@ internal object GoalInteractionSmoke {
                 TaskReminders.setReminderTime(context, LocalTime.of(21, 35))
                 verify(TaskReminders.reminderTime(context) == LocalTime.of(21, 35), "Custom time persists in isolated preferences")
                 verify(!TaskReminders.isEnabled(context), "Choosing time does not enable reminders or schedule work when disabled")
+                val calendar = CalendarViewModel()
+                verify(calendar.snapshot.unscheduledCount == 3, "Calendar shows remaining undated active tasks")
+                val calendarDay = LocalDate.of(2026, 12, 31)
+                val calendarTaskId = manualTasks.first().id
+                calendar.setDate(calendarTaskId, TaskAgenda.dateMillis(calendarDay))
+                verify(calendar.snapshot.byDate[calendarDay]?.single()?.id == calendarTaskId,
+                    "Calendar date changes refresh the selected day and persist")
+                val xpTotal = GameStore.loadXP().sumOf { it.amount }
+                calendar.toggle(calendarTaskId)
+                verify(calendar.snapshot.byDate[calendarDay]?.single()?.done == true,
+                    "Calendar keeps completed tasks visible")
+                calendar.toggle(calendarTaskId)
+                calendar.toggle(calendarTaskId)
+                verify(GameStore.loadXP().sumOf { it.amount } == xpTotal + 10,
+                    "Calendar undo/recompletion does not duplicate rewards")
             } catch (error: Throwable) {
                 failure = error
             } finally {

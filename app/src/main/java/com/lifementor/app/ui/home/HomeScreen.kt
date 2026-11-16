@@ -62,6 +62,7 @@ import com.lifementor.app.ui.components.ExpandableCard
 fun HomeScreen(
     goGoals: () -> Unit,
     goMentors: () -> Unit,
+    goCalendar: () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -105,6 +106,11 @@ fun HomeScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("我的一天", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f))
+            TextButton(onClick = goCalendar) { Text("日历") }
+        }
         // 角色卡
         Card(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {

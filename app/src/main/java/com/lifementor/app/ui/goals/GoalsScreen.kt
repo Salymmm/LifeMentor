@@ -56,7 +56,7 @@ import com.lifementor.app.ui.components.TaskDateAction
 private data class NewTask(val goalId: Long, val parentId: Long?)
 
 @Composable
-fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
+fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
     LaunchedEffect(GameStore.taskRevision.intValue) { vm.refresh() }
     var showAdd by remember { mutableStateOf(false) }
     var editGoalId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -72,13 +72,10 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
         ) {
             Text("人生目标", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            vm.xpToast.value?.let {
-                Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(8.dp))
-            }
+            TextButton(onClick = onOpenCalendar) { Text("日历") }
             Button(onClick = { showAdd = true }) { Text("新增目标") }
         }
-        Text("点任务名称可编辑或删除", style = MaterialTheme.typography.bodySmall,
+        Text(listOfNotNull(vm.xpToast.value, "点任务名称可编辑或删除").joinToString(" · "), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
         vm.error.value?.let {
             Text(
