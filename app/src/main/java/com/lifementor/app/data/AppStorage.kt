@@ -5,7 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-/** 一条规划版本的元数据 */
+/** Metadata for one generated document version */
 data class PlanMeta(
     val id: Long,
     val model: String,
@@ -15,8 +15,8 @@ data class PlanMeta(
 )
 
 /**
- * 本地存储：画像、设置、Markdown 规划（含版本历史）全部落在应用私有目录，
- * 卸载应用即清除，不上传任何数据。
+ * Local storage: profile, settings and Markdown documents (with version history) live
+ * in the app's private directory only — removed on uninstall, never uploaded.
  */
 object AppStorage {
     private lateinit var ctx: Context
@@ -30,7 +30,7 @@ object AppStorage {
     private val settingsFile get() = File(ctx.filesDir, "settings.json")
     private val prefsFile get() = File(ctx.filesDir, "prefs.json")
 
-    /** 通用文档桶：plans=职业规划，reviews=每周复盘 */
+    /** Doc buckets: plans = career plan, reviews = weekly review */
     private fun bucketDir(bucket: String) = File(ctx.filesDir, bucket).apply { mkdirs() }
     private fun bucketIndex(bucket: String) = File(bucketDir(bucket), "index.json")
 
@@ -58,7 +58,7 @@ object AppStorage {
         settingsFile.writeText(s.toJson())
     }
 
-    /** 按生成时间升序返回某个桶内全部文档版本 */
+    /** All versions in a bucket, ascending by generation time */
     fun versions(bucket: String): List<PlanMeta> {
         val indexFile = bucketIndex(bucket)
         if (!indexFile.exists()) return emptyList()
@@ -86,7 +86,7 @@ object AppStorage {
             ""
         }
 
-    /** 保存一次新生成/更新的文档版本，返回其元数据 */
+    /** Persist a new/updated document version and return its metadata */
     fun saveDoc(bucket: String, content: String, model: String, note: String): PlanMeta {
         val id = System.currentTimeMillis()
         val fileName = "$bucket-$id.md"
@@ -110,16 +110,16 @@ object AppStorage {
         return PlanMeta(id, model, note, summary, fileName)
     }
 
-    /** 复制一份到 cache 目录供系统分享导出 */
+    /** Copy into the cache dir for the system share sheet */
     fun fileForShare(bucket: String, meta: PlanMeta): File? = try {
         val dir = File(ctx.cacheDir, "shared").apply { mkdirs() }
-        val prefix = if (bucket == "reviews") "每周复盘" else "人生职业规划"
+        val prefix = if (bucket == "reviews") "Weekly-Review" else "Life-Career-Plan"
         File(dir, "$prefix-${meta.id}.md").apply { writeText(readDoc(bucket, meta)) }
     } catch (e: Exception) {
         null
     }
 
-    /** 危险区：删除画像/设置/文档桶/偏好（角色与目标由 GameStore.clearAll 负责） */
+    /** Danger zone: wipe profile/settings/doc buckets/prefs (role & goals are cleared by GameStore.clearAll) */
     fun wipeDocsAndProfile() {
         ctx.deleteFile("profile.json")
         ctx.deleteFile("settings.json")

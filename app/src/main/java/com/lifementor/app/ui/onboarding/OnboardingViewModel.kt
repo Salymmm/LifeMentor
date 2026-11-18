@@ -20,7 +20,7 @@ class OnboardingViewModel : ViewModel() {
 
     fun finish() {
         val role = Role(
-            nickname = nickname.value.trim().ifBlank { "探索者" },
+            nickname = nickname.value.trim().ifBlank { "Explorer" },
             avatar = avatar.value,
             stage = stage.value ?: "",
             vision = vision.value.trim(),

@@ -66,11 +66,11 @@ class PlanViewModel : ViewModel() {
         val settings = AppStorage.loadSettings()
         val profile = AppStorage.loadProfile()
         if (settings.apiKey.isBlank()) {
-            state = GenState.Error("还没有配置 API Key：请到底部「设置」页填入免费的大模型 Key（推荐智谱 GLM，注册约 3 分钟）")
+            state = GenState.Error("No API key configured: open Settings at the bottom and add a free LLM key (Zhipu GLM recommended — sign-up takes ~3 minutes)")
             return
         }
         if (profile.isEmpty()) {
-            state = GenState.Error("画像还是空的：可到「设置 → 职业画像」补全，或直接让导师基于对话完善")
+            state = GenState.Error("Your profile is still empty: fill it in under Settings → Career Profile, or let a mentor build it from your chat")
             return
         }
         state = GenState.Running
@@ -95,7 +95,7 @@ class PlanViewModel : ViewModel() {
                     if (AiOperationRegistry.isCurrent(token)) content.value = streamed.toString()
                 }
                 val md = streamed.toString().trim()
-                if (md.isBlank()) throw LlmException("模型返回了空内容，请重试")
+                if (md.isBlank()) throw LlmException("The model returned empty content. Please retry.")
                 if (!AiOperationRegistry.isCurrent(token)) return@createJob
                 val meta = AppStorage.saveDoc("plans", md, settings.model, requestText.value.trim())
                 _versions.value = AppStorage.versions("plans").reversed()
@@ -106,7 +106,7 @@ class PlanViewModel : ViewModel() {
                 throw cancelled
             } catch (e: Exception) {
                 if (AiOperationRegistry.isCurrent(token)) {
-                    state = GenState.Error(e.message ?: "生成失败（${e.javaClass.simpleName}）")
+                    state = GenState.Error(e.message ?: "Generation failed (${e.javaClass.simpleName})")
                 }
             } finally {
                 if (generationJob === coroutineContext.job) {

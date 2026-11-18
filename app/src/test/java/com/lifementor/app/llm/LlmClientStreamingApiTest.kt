@@ -86,7 +86,7 @@ class LlmClientStreamingApiTest {
             val failure = runCatching { streamFrom(server).collect() }.exceptionOrNull()
 
             assertTrue("Expected an LlmException, got $failure", failure is LlmException)
-            assertTrue(failure!!.message.orEmpty().contains("触发限流"))
+            assertTrue(failure!!.message.orEmpty().contains("Rate limited"))
             assertTrue(failure.message.orEmpty().contains("rate limit reached"))
         }
     }
@@ -101,8 +101,8 @@ class LlmClientStreamingApiTest {
         val failure = runCatching { streamFrom(settings).collect() }.exceptionOrNull()
 
         assertTrue("Expected an LlmException, got $failure", failure is LlmException)
-        assertTrue(failure!!.message.orEmpty().contains("网络请求失败"))
-        assertTrue(failure.message.orEmpty().contains("请检查手机/模拟器网络"))
+        assertTrue(failure!!.message.orEmpty().contains("Network request failed"))
+        assertTrue(failure.message.orEmpty().contains("Check the device/emulator network"))
     }
 
     @Test

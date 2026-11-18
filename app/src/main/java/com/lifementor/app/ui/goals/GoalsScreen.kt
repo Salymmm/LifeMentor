@@ -41,6 +41,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
+import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.LabeledField
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.ScrapCard
+import com.lifementor.app.ui.components.StickerButton
+import com.lifementor.app.ui.theme.Charcoal
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.theme.ScrapBlue
+import com.lifementor.app.ui.theme.ScrapRed
+import com.lifementor.app.ui.theme.ScrapYellow
+import com.lifementor.app.ui.components.MentorAvatar
 
 @Composable
 fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
@@ -52,13 +64,16 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("人生目标", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Column {
+                DisplayTitle("Goals")
+                Text("Life Goals", style = MaterialTheme.typography.labelSmall, color = InkSoft)
+            }
             Spacer(Modifier.weight(1f))
             vm.xpToast.value?.let {
-                Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(it, color = ScrapRed, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Spacer(Modifier.width(8.dp))
             }
-            Button(onClick = { showAdd = true }) { Text("新增目标") }
+            StickerButton("+ New goal", onClick = { showAdd = true })
         }
         vm.error.value?.let {
             Text(
@@ -79,13 +94,18 @@ fun GoalsScreen(vm: GoalsViewModel = viewModel()) {
         ) {
             if (active.isEmpty() && done.isEmpty()) {
                 item {
-                    Card(Modifier.fillMaxWidth()) {
+                    ScrapCard(
+                        paperColor = PaperWhite,
+                        shadowColor = Charcoal.copy(alpha = 0.18f),
+                        fillWidth = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                         Column(Modifier.padding(20.dp)) {
-                            Text("还没有目标", fontWeight = FontWeight.Bold)
+                            Text("No goals yet", fontWeight = FontWeight.Bold)
                             Text(
-                                "点「新增目标」写下你在意的事，再让 AI 把它拆成里程碑 → 周任务 → 每日行动。",
+                                "Tap New goal and write down what matters. AI will split it into milestones → weekly tasks → daily actions.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = InkSoft,
                             )
                         }
                     }
@@ -115,19 +135,30 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
     val isDecomposing = vm.decomposingId.value == goal.id
     val open = vm.expanded[goal.id] == true || !goal.decomposed
 
-    Card(Modifier.fillMaxWidth()) {
+    ScrapCard(
+        paperColor = if (goal.status == "active") PaperWhite else ScrapYellow.copy(alpha = 0.6f),
+        shadowColor = Charcoal.copy(alpha = 0.18f),
+        rotation = -0.2f,
+        fillWidth = true,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .background(
-                            (mentor?.color ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.16f),
-                            CircleShape,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(mentor?.emoji ?: "✨", fontSize = 20.sp)
+                val avatarMentor = mentor
+                if (avatarMentor != null) {
+                    MentorAvatar(avatarMentor, 40.dp, fallbackEmojiSize = 20.sp)
+                } else {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                CircleShape,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("✨", fontSize = 20.sp)
+                    }
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -141,7 +172,7 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                     Text(
                         if (goal.decomposed) {
                             val d = sub.count { it.done }
-                            "${mentor?.domainLabel ?: goal.domain}　$d/${sub.size} 已完成"
+                            "${mentor?.domainLabel ?: goal.domain}  $d/${sub.size} done"
                         } else {
                             mentor?.domainLabel ?: goal.domain
                         },
@@ -150,33 +181,33 @@ private fun GoalCard(goal: com.lifementor.app.data.Goal, vm: GoalsViewModel, onQ
                     )
                 }
                 if (goal.decomposed) {
-                    TextButton(onClick = { vm.expanded[goal.id] = !(vm.expanded[goal.id] == true) }) {
-                        Text(if (open) "收起" else "展开")
-                    }
+                    PaperChip(if (open) "Collapse" else "Expand",
+                        onClick = { vm.expanded[goal.id] = !(vm.expanded[goal.id] == true) })
                 }
             }
 
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!goal.decomposed) {
-                    Button(onClick = { vm.decompose(goal.id) }, enabled = !vm.busy.value) {
-                        if (isDecomposing) {
-                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    if (isDecomposing) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = ScrapRed)
                             Spacer(Modifier.width(6.dp))
-                            Text("拆解中…")
-                        } else {
-                            Text("AI 拆解目标")
+                            Text("Decomposing…", style = MaterialTheme.typography.bodySmall)
                         }
+                    } else {
+                        StickerButton("✂ AI-decompose", onClick = { vm.decompose(goal.id) },
+                            enabled = !vm.busy.value, arrow = true)
                     }
                 }
                 Spacer(Modifier.width(6.dp))
                 if (goal.decomposed) {
-                    TextButton(onClick = onQuickAdd) { Text("+ 今日行动") }
+                    PaperChip("+ Daily action", onClick = onQuickAdd)
                 }
                 Spacer(Modifier.weight(1f))
                 if (goal.status == "active") {
-                    TextButton(onClick = { vm.completeGoal(goal.id) }) { Text("完成") }
+                    PaperChip("✓ Done", onClick = { vm.completeGoal(goal.id) })
                 }
-                TextButton(onClick = { vm.deleteGoal(goal.id) }) { Text("删除") }
+                PaperChip("Delete", onClick = { vm.deleteGoal(goal.id) })
             }
 
             if (open && goal.decomposed) {
@@ -221,26 +252,17 @@ private fun AddGoalDialog(onDismiss: () -> Unit, onCreate: (String, String) -> U
     var domain by remember { mutableStateOf("pathfinder") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("新增目标") },
+        title = { Text("New goal") },
         text = {
             Column {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("想要达成什么？（具体一点）") },
-                    minLines = 2,
-                    maxLines = 4,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                LabeledField("What do you want to achieve? (be specific)", title, singleLine = false, minLines = 2) { title = it }
                 Spacer(Modifier.height(10.dp))
-                Text("归属领域", style = MaterialTheme.typography.titleSmall)
+                Text("Domain", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(6.dp))
                 Row(Modifier.fillMaxWidth()) {
                     Mentors.all.forEach { m ->
                         val sel = m.id == domain
-                        Text(
-                            m.emoji,
-                            fontSize = 22.sp,
+                        Box(
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .background(
@@ -248,8 +270,10 @@ private fun AddGoalDialog(onDismiss: () -> Unit, onCreate: (String, String) -> U
                                     else MaterialTheme.colorScheme.surfaceContainerHighest
                                 )
                                 .clickable { domain = m.id }
-                                .padding(8.dp),
-                        )
+                                .padding(4.dp),
+                        ) {
+                            MentorAvatar(m, 34.dp, fallbackEmojiSize = 22.sp)
+                        }
                         Spacer(Modifier.width(6.dp))
                     }
                 }
@@ -258,11 +282,10 @@ private fun AddGoalDialog(onDismiss: () -> Unit, onCreate: (String, String) -> U
             }
         },
         confirmButton = {
-            Button(
-                onClick = { if (title.isNotBlank()) onCreate(title.trim(), domain) },
-            ) { Text("创建") }
+            StickerButton("Create", onClick = { if (title.isNotBlank()) onCreate(title.trim(), domain) },
+                shadowColor = ScrapBlue)
         },
-        dismissButton = { TextButton(onDismiss) { Text("取消") } },
+        dismissButton = { PaperChip("Cancel", onClick = onDismiss) },
     )
 }
 
@@ -271,18 +294,11 @@ private fun QuickActionDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var title by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("加一条今日行动") },
+        title = { Text("Add a daily action") },
         text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("例如：投递 2 份岗位 JD 匹配的简历") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
-                maxLines = 3,
-            )
+            LabeledField("e.g. Send 2 CVs matched to the job description", title, singleLine = false, minLines = 2) { title = it }
         },
-        confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title.trim()) }) { Text("添加 (+10 XP)") } },
-        dismissButton = { TextButton(onDismiss) { Text("取消") } },
+        confirmButton = { StickerButton("Add (+10 XP)", onClick = { if (title.isNotBlank()) onAdd(title.trim()) }) },
+        dismissButton = { PaperChip("Cancel", onClick = onDismiss) },
     )
 }

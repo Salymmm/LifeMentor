@@ -2,7 +2,7 @@ package com.lifementor.app.data
 
 import org.json.JSONObject
 
-/** 人生角色卡：M2 创建向导的产物 */
+/** Life character card: created in the M2 onboarding flow */
 data class Role(
     val nickname: String = "",
     val avatar: String = "🧭",
@@ -15,15 +15,18 @@ data class Role(
         .toString()
 
     companion object {
-        val stages = listOf("大三/大四在读", "应届毕业中", "研究生", "求职中", "职场 1-3 年", "转型/间隔年中", "其他")
+        val stages = listOf(
+            "Junior / Senior year", "Fresh graduate", "Grad student",
+            "Job hunting", "0–3 years working", "Switching / gap year", "Other",
+        )
 
         val focuses = listOf(
-            Triple("找一份心仪的工作", "pathfinder", "💼"),
-            Triple("升学 / 科研 /  GPA", "scholar", "📚"),
-            Triple("打理收入与储蓄", "fortune", "💰"),
-            Triple("规律作息与运动", "vital", "🏃"),
-            Triple("情绪与重要关系", "heart", "🌿"),
-            Triple("发展一项热爱特长", "scholar", "🎨"),
+            Triple("Land a job I actually want", "pathfinder", "💼"),
+            Triple("Grad school · research · GPA", "scholar", "📚"),
+            Triple("Get income & savings in order", "fortune", "💰"),
+            Triple("Steady sleep & training", "vital", "🏃"),
+            Triple("Feelings & key relationships", "heart", "🌿"),
+            Triple("Grow a real passion", "scholar", "🎨"),
         )
 
         fun fromJson(s: String): Role = try {

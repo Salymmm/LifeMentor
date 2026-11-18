@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-/** 目标 / 任务 / XP / 聊天 / 角色 的本地仓库（JSON 文件实现，后续可无痛迁移 Room） */
+/** Local store for goals / tasks / XP / chats / role (JSON files; painless migration to Room later) */
 object GameStore {
     private val ctx get() = AppStorage.appCtx
     private val goalsFile get() = File(ctx.filesDir, "goals.json")
@@ -13,7 +13,7 @@ object GameStore {
     private val roleFile get() = File(ctx.filesDir, "role.json")
     private val chatsDir get() = File(ctx.filesDir, "chats").apply { mkdirs() }
 
-    // ---------- 角色 ----------
+    // ---------- Role ----------
     fun loadRole(): Role =
         if (roleFile.exists()) Role.fromJson(roleFile.readText()) else Role()
 
@@ -21,7 +21,7 @@ object GameStore {
 
     fun isOnboarded(): Boolean = AppStorage.prefs().optBoolean("onboarded", false)
 
-    // ---------- 目标 ----------
+    // ---------- Goals ----------
     fun loadGoals(): MutableList<Goal> = try {
         val a = JSONArray(if (goalsFile.exists()) goalsFile.readText() else "[]")
         (0 until a.length()).map { Goal.from(a.getJSONObject(it)) }.toMutableList()
@@ -51,7 +51,7 @@ object GameStore {
         saveGoals(loadGoals().map { if (it.id == id) it.copy(decomposed = true) else it })
     }
 
-    // ---------- 任务 ----------
+    // ---------- Tasks ----------
     fun loadTasks(): MutableList<TaskItem> = try {
         val a = JSONArray(if (tasksFile.exists()) tasksFile.readText() else "[]")
         (0 until a.length()).map { TaskItem.from(a.getJSONObject(it)) }.toMutableList()
@@ -65,7 +65,7 @@ object GameStore {
         tasksFile.writeText(a.toString())
     }
 
-    /** 勾选/取消勾选任务；首次完成时按档位发放 XP（只奖不罚，反悔不回收） */
+    /** Toggle a task; on first completion grant tier-based XP (reward only, never clawed back) */
     fun toggleTask(taskId: Long): Int {
         val tasks = loadTasks()
         val idx = tasks.indexOfFirst { it.id == taskId }
@@ -112,7 +112,7 @@ object GameStore {
         xpFile.writeText(XPEntry.listToJson(list))
     }
 
-    // ---------- 聊天 ----------
+    // ---------- Chat ----------
     fun loadChat(mentorId: String): List<Msg> {
         return try {
             val f = File(chatsDir, "$mentorId.json")
@@ -135,7 +135,7 @@ object GameStore {
         chatsDir.listFiles()?.forEach { it.delete() }
     }
 
-    /** 创建向导完成：写角色 + 勾选的主线自动生成目标 */
+    /** Onboarding finished: persist the role and auto-create goals from the chosen focuses */
     fun completeOnboarding(role: Role, focusDomains: List<Pair<String, String>>) {
         saveRole(role)
         val goals = loadGoals()

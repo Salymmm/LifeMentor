@@ -39,17 +39,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.Role
+import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.ScrapCard
+import com.lifementor.app.ui.components.StickerButton
 import com.lifementor.app.ui.components.LabeledField
 import com.lifementor.app.ui.components.SectionTitle
+import com.lifementor.app.ui.theme.Charcoal
+import com.lifementor.app.ui.theme.InkBlack
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.theme.ScrapBlue
+import com.lifementor.app.ui.theme.ScrapRed
+import com.lifementor.app.ui.theme.ScrapRedDeep
+import com.lifementor.app.ui.theme.ScrapYellow
 import com.lifementor.app.ui.profile.ProfileViewModel
 
 private data class Preset(val name: String, val url: String, val model: String, val hint: String)
 
 private val presets = listOf(
-    Preset("智谱 GLM（默认 · 免费）", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash", "open.bigmodel.cn 注册 → 用户中心 → API Keys"),
-    Preset("SiliconFlow（新用户送额度）", "https://api.siliconflow.cn/v1", "deepseek-ai/DeepSeek-V3", "siliconflow.cn 注册领取免费额度"),
-    Preset("DeepSeek（价格极低）", "https://api.deepseek.com/v1", "deepseek-chat", "platform.deepseek.com 少量充值即可长期使用"),
-    Preset("本机 Ollama（完全免费，模拟器可用）", "http://10.0.2.2:11434/v1", "qwen2.5:7b", "电脑上运行 ollama serve；API Key 随便填，如 ollama"),
+    Preset("Zhipu GLM (default · free)", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash", "Sign up at open.bigmodel.cn → User Center → API Keys"),
+    Preset("SiliconFlow (free credits for new users)", "https://api.siliconflow.cn/v1", "deepseek-ai/DeepSeek-V3", "Sign up at siliconflow.cn to claim free credits"),
+    Preset("DeepSeek (very low price)", "https://api.deepseek.com/v1", "deepseek-chat", "A small top-up at platform.deepseek.com lasts a long while"),
+    Preset("Local Ollama (free, works in emulator)", "http://10.0.2.2:11434/v1", "qwen2.5:7b", "Run ollama serve on your computer; any API key works, e.g. ollama"),
 )
 
 @Composable
@@ -68,12 +80,15 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text("设置", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Column {
+            DisplayTitle("Settings")
+            Text("Settings", style = MaterialTheme.typography.labelSmall, color = InkSoft)
+        }
         Spacer(Modifier.height(10.dp))
 
-        // ---------- 人生角色 ----------
-        SectionTitle("人生角色")
-        Text("选个头像", style = MaterialTheme.typography.labelMedium)
+        // ---------- Life role ----------
+        SectionTitle("Life Role")
+        Text("Pick an avatar", style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(6.dp))
         vm.let { _ ->
             Row(Modifier.fillMaxWidth()) {
@@ -85,8 +100,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(
-                                if (sel) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerHighest
+                                if (sel) ScrapYellow else PaperWhite
                             )
                             .clickable { vm.roleAvatar.value = e }
                             .padding(10.dp),
@@ -96,84 +110,93 @@ fun SettingsScreen(
             }
         }
         Spacer(Modifier.height(8.dp))
-        LabeledField("称呼", vm.roleNickname.value) { vm.roleNickname.value = it }
-        LabeledField("人生阶段", vm.roleStage.value) { vm.roleStage.value = it }
-        LabeledField("愿景（会出现在主页和每次复盘）", vm.roleVision.value, singleLine = false, minLines = 2) {
+        LabeledField("Nickname", vm.roleNickname.value) { vm.roleNickname.value = it }
+        LabeledField("Life stage", vm.roleStage.value) { vm.roleStage.value = it }
+        LabeledField("Vision (shown on Home and in every review)", vm.roleVision.value, singleLine = false, minLines = 2) {
             vm.roleVision.value = it
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { vm.saveRole() }) { Text("保存角色") }
+            StickerButton("✓ Save role", onClick = { vm.saveRole() })
             vm.roleSavedAt?.let {
                 Spacer(Modifier.width(10.dp))
-                Text("✓ $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text("✓ $it", style = MaterialTheme.typography.bodySmall, color = ScrapRed)
             }
         }
 
-        // ---------- 职业画像 ----------
-        SectionTitle("职业画像（导师与规划的数据源）")
-        LabeledField("当前状态（学校专业/公司岗位）", p.current) { v -> pvm.update { it.copy(current = v) } }
-        LabeledField("学术背景", p.academic, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(academic = v) } }
-        LabeledField("经历（实习/项目/工作）", p.experience, singleLine = false, minLines = 3) { v -> pvm.update { it.copy(experience = v) } }
-        LabeledField("技能", p.skills, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(skills = v) } }
-        LabeledField("兴趣", p.interests, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(interests = v) } }
-        LabeledField("性格特质", p.personality, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(personality = v) } }
-        LabeledField("价值观与偏好", p.values, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(values = v) } }
-        LabeledField("所在城市 / 目标城市", p.location) { v -> pvm.update { it.copy(location = v) } }
-        LabeledField("其他补充", p.extra, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(extra = v) } }
+        // ---------- Career profile ----------
+        SectionTitle("Career Profile (shared with mentors & planning)")
+        LabeledField("Current status (school & major / company & role)", p.current) { v -> pvm.update { it.copy(current = v) } }
+        LabeledField("Academic background", p.academic, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(academic = v) } }
+        LabeledField("Experience (internships / projects / jobs)", p.experience, singleLine = false, minLines = 3) { v -> pvm.update { it.copy(experience = v) } }
+        LabeledField("Skills", p.skills, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(skills = v) } }
+        LabeledField("Interests", p.interests, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(interests = v) } }
+        LabeledField("Personality", p.personality, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(personality = v) } }
+        LabeledField("Values & preferences", p.values, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(values = v) } }
+        LabeledField("Current city / target city", p.location) { v -> pvm.update { it.copy(location = v) } }
+        LabeledField("Anything else", p.extra, singleLine = false, minLines = 2) { v -> pvm.update { it.copy(extra = v) } }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { pvm.save() }) { Text("保存画像") }
+            StickerButton("✓ Save profile", onClick = { pvm.save() })
             pvm.savedAt?.let {
                 Spacer(Modifier.width(10.dp))
-                Text("✓ $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text("✓ $it", style = MaterialTheme.typography.bodySmall, color = ScrapRed)
             }
         }
 
         // ---------- API ----------
-        SectionTitle("大模型接口")
-        Card(Modifier.fillMaxWidth()) {
+        SectionTitle("LLM Endpoint")
+        ScrapCard(
+            paperColor = ScrapYellow,
+            shadowColor = Charcoal.copy(alpha = 0.18f),
+            rotation = 0.3f,
+            fillWidth = true,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(Modifier.padding(12.dp)) {
-                Text("获取免费 API Key（约 3 分钟）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("Get a free API key (about 3 minutes)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(
-                    "1. 打开 open.bigmodel.cn 注册/登录　2. 用户中心 → API Keys 新建并复制\n" +
-                        "3. 粘贴到下方并保存　4. 点「测试连接」看到 ✓ 即可使用\n" +
-                        "默认模型 glm-4-flash 长期免费。",
+                    "1. Open open.bigmodel.cn and sign up / log in\n" +
+                        "2. User Center → API Keys: create & copy\n" +
+                        "3. Paste it below and save\n" +
+                        "4. Tap \"Test connection\" and look for a ✓\n" +
+                        "The default model glm-4-flash is free to keep using.",
                     style = MaterialTheme.typography.bodySmall,
+                    color = InkBlack,
                 )
             }
         }
         Spacer(Modifier.height(10.dp))
-        LabeledField("API 地址（Base URL）", vm.baseUrl.value) { vm.baseUrl.value = it }
-        LabeledField("模型名", vm.model.value) { vm.model.value = it }
+        LabeledField("Base URL", vm.baseUrl.value) { vm.baseUrl.value = it }
+        LabeledField("Model name", vm.model.value) { vm.model.value = it }
         LabeledField(
             label = "API Key",
             value = vm.apiKey.value,
             singleLine = false,
             minLines = 1,
             isError = vm.apiKey.value.isBlank(),
-            supportingText = if (vm.apiKey.value.isBlank()) "必填。免费模型也需要 Key 才能调用" else null,
+            supportingText = if (vm.apiKey.value.isBlank()) "Required. Even free models need a key to call" else null,
             visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailing = {
                 TextButton(onClick = { keyVisible = !keyVisible }) {
-                    Text(if (keyVisible) "隐藏" else "显示")
+                    Text(if (keyVisible) "Hide" else "Show")
                 }
             },
             onChange = { vm.apiKey.value = it },
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { vm.save() }) { Text("保存接口配置") }
+            StickerButton("✓ Save endpoint", onClick = { vm.save() })
             Spacer(Modifier.width(10.dp))
-            OutlinedButton(onClick = { vm.test() }, enabled = !vm.testing) {
-                if (vm.testing) {
-                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+            if (vm.testing) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = ScrapRed)
                     Spacer(Modifier.width(6.dp))
-                    Text("测试中…")
-                } else {
-                    Text("测试连接")
+                    Text("Testing…", style = MaterialTheme.typography.bodySmall)
                 }
+            } else {
+                PaperChip("⚡ Test connection", onClick = { vm.test() })
             }
             vm.savedAt?.let {
                 Spacer(Modifier.width(10.dp))
-                Text("✓ $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text("✓ $it", style = MaterialTheme.typography.bodySmall, color = ScrapRed)
             }
         }
         vm.testResult?.let {
@@ -181,10 +204,10 @@ fun SettingsScreen(
             Text(
                 it,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (it.startsWith("✓")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                color = if (it.startsWith("✓")) ScrapRed else MaterialTheme.colorScheme.error,
             )
         }
-        Text("常用预设（点一下填入）", style = MaterialTheme.typography.labelMedium)
+        Text("Handy presets (tap to fill in)", style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(4.dp))
         presets.forEach { pr ->
             Row(
@@ -192,42 +215,46 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .padding(vertical = 3.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .background(PaperWhite)
                     .clickable { vm.applyPreset(pr.url, pr.model) }
                     .padding(10.dp),
             ) {
                 Column {
                     Text(pr.name, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "${pr.url}　·　${pr.model}",
+                        "${pr.url}  ·  ${pr.model}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = InkSoft,
                     )
                 }
             }
         }
 
-        // ---------- 数据 ----------
-        SectionTitle("数据与隐私")
+        // ---------- Data ----------
+        SectionTitle("Data & Privacy")
         Text(
-            "所有画像、目标、任务、聊天记录与规划都只存本机；卸载即清空。",
+            "Profiles, goals, tasks, chats and plans are stored on this device only; uninstalling wipes everything.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
-        Card(
-            Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        ScrapCard(
+            paperColor = ScrapRed,
+            shadowColor = Charcoal.copy(alpha = 0.22f),
+            rotation = -0.3f,
+            fillWidth = true,
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("清空全部数据", fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onErrorContainer)
-                    Text("角色、目标、XP、聊天、规划、复盘、画像将全部删除",
+                    Text("Erase all data", fontWeight = FontWeight.Bold,
+                        color = PaperWhite)
+                    Text("Role, goals, XP, chats, plans, reviews and profile will all be deleted",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer)
+                        color = PaperWhite.copy(alpha = 0.9f))
                 }
-                OutlinedButton(onClick = { showWipe = true }) { Text("清空") }
+                StickerButton("Erase", onClick = { showWipe = true },
+                    baseColor = ScrapRedDeep, shadowColor = ScrapYellow, contentColor = PaperWhite)
             }
         }
         Spacer(Modifier.height(30.dp))
@@ -236,16 +263,22 @@ fun SettingsScreen(
     if (showWipe) {
         AlertDialog(
             onDismissRequest = { showWipe = false },
-            title = { Text("确认清空？") },
-            text = { Text("此操作不可恢复。API Key 配置也会一起清除（画像/目标/XP/聊天/文档全部删除）。") },
+            title = { Text("Erase everything?") },
+            text = { Text("This cannot be undone. The API key config goes too (profile / goals / XP / chats / docs all deleted).") },
             confirmButton = {
-                Button(onClick = {
-                    vm.wipeAll()
-                    showWipe = false
-                    onRedoOnboarding()
-                }) { Text("全部清空") }
+                StickerButton(
+                    "Erase all",
+                    onClick = {
+                        vm.wipeAll()
+                        showWipe = false
+                        onRedoOnboarding()
+                    },
+                    baseColor = ScrapRedDeep,
+                    shadowColor = ScrapYellow,
+                    contentColor = PaperWhite,
+                )
             },
-            dismissButton = { TextButton({ showWipe = false }) { Text("取消") } },
+            dismissButton = { PaperChip("Cancel", onClick = { showWipe = false }) },
         )
     }
 }

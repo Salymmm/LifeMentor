@@ -3,7 +3,7 @@ package com.lifementor.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 目标（年度/长期愿景下的主线目标） */
+/** A goal (a main-line objective under the yearly / long-term vision) */
 data class Goal(
     val id: Long,
     val title: String,
@@ -24,7 +24,7 @@ data class Goal(
     }
 }
 
-/** 任务树节点：level 1=季度里程碑 2=周任务 3=每日行动 */
+/** Task-tree node: level 1 = quarterly milestone, 2 = weekly task, 3 = daily action */
 data class TaskItem(
     val id: Long,
     val goalId: Long,
@@ -52,7 +52,7 @@ data class TaskItem(
     }
 }
 
-/** XP 流水 */
+/** XP ledger entry */
 data class XPEntry(
     val time: Long,
     val amount: Int,
@@ -77,7 +77,7 @@ data class XPEntry(
     }
 }
 
-/** 聊天记录消息 */
+/** A chat message */
 data class Msg(
     val time: Long,
     val role: String, // user | assistant
@@ -90,7 +90,7 @@ data class Msg(
     }
 }
 
-/** 成就 */
+/** An achievement */
 data class Achievement(
     val emoji: String,
     val name: String,

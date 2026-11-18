@@ -4,7 +4,7 @@ import com.lifementor.app.data.AppStorage
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Leveling
 
-/** 所有导师共享的上下文：角色 + 画像 + 活跃目标 + 本周状态（PRD「导师共享授权信息」的简化实现） */
+/** Context shared by all mentors: role + profile + active goals + this week's status (simplified "authorized shared context" from the PRD) */
 object ContextBuilder {
     fun sharedSummary(): String {
         val role = GameStore.loadRole()
@@ -14,19 +14,19 @@ object ContextBuilder {
         val stat = Leveling.weeklyStat(tasks, GameStore.loadXP())
         val level = Leveling.levelOf(GameStore.loadXP().sumOf { it.amount })
         return buildString {
-            appendLine("【角色】${role.avatar} ${role.nickname.ifBlank { "（未命名）" } }，Lv$level，阶段：${role.stage.orUnknown()}")
-            if (role.vision.isNotBlank()) appendLine("【愿景】${role.vision}")
-            if (!profile.isEmpty()) appendLine("【画像】${profile.toPromptJson()}")
+            appendLine("[Role]${role.avatar} ${role.nickname.ifBlank { "(unnamed)" } }, Lv$level, stage: ${role.stage.orUnknown()}")
+            if (role.vision.isNotBlank()) appendLine("[Vision]${role.vision}")
+            if (!profile.isEmpty()) appendLine("[Profile]${profile.toPromptJson()}")
             if (goals.isNotEmpty()) {
-                appendLine("【活跃目标】")
+                appendLine("[Active goals]")
                 goals.forEach { g ->
                     val sub = tasks.filter { it.goalId == g.id }
-                    appendLine("- ${g.title}（${g.domain}${if (g.decomposed) "，已拆解 ${sub.count { t -> t.done }}/${sub.size} 项" else "，未拆解"}）")
+                    appendLine("- ${g.title} (${g.domain}${if (g.decomposed) ", decomposed ${sub.count { t -> t.done }}/${sub.size}" else ", not decomposed"})")
                 }
             }
-            appendLine("【本周】完成 ${stat.doneCount} 项 / 欠 ${stat.openCount} 项，获得 ${stat.xpGained} XP")
+            appendLine("[This week]completed ${stat.doneCount} / open ${stat.openCount}, earned ${stat.xpGained} XP")
         }.take(2600)
     }
 
-    private fun String.orUnknown(): String = ifBlank { "未知" }
+    private fun String.orUnknown(): String = ifBlank { "unknown" }
 }

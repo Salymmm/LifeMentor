@@ -15,7 +15,7 @@ object LlmWorkflows {
         constraints: String = "",
         recentConversation: String = "",
     ): String {
-        if (question.isBlank()) throw LlmException("请先描述要比较的选择")
+        if (question.isBlank()) throw LlmException("Describe the choices you want to compare first.")
         return LlmClient.chat(
             settings,
             listOf(
@@ -35,7 +35,7 @@ object LlmWorkflows {
         constraints: String = "",
         recentConversation: String = "",
     ): Flow<String> {
-        if (question.isBlank()) throw LlmException("请先描述要比较的选择")
+        if (question.isBlank()) throw LlmException("Describe the choices you want to compare first.")
         return LlmClient.chatStream(
             settings,
             listOf(

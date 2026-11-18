@@ -3,15 +3,15 @@ package com.lifementor.app.data
 import java.util.Calendar
 import kotlin.math.pow
 
-/** 成长体系：XP 规则、等级曲线、周统计、成就。只奖励，不惩罚（PRD 温和成长机制）。 */
+/** Growth system: XP rules, level curve, weekly stats, achievements. Rewards only, no penalties. */
 object Leveling {
     fun xpForLevel(level: Int): Int = when (level) {
-        1 -> 100 // 季度里程碑
-        2 -> 30  // 周任务
-        else -> 10 // 每日行动
+        1 -> 100 // quarterly milestone
+        2 -> 30  // weekly task
+        else -> 10 // daily action
     }
 
-    /** 升到 level+1 所需增量 */
+    /** XP needed to reach level+1 */
     fun needFor(level: Int): Int = (80 * level * 1.15.pow(level - 1)).toInt()
 
     fun levelOf(totalXp: Int): Int {
@@ -25,7 +25,7 @@ object Leveling {
         return level
     }
 
-    fun progressOf(totalXp: Int): Pair<Int, Int> { // (当前等级内已有, 升级需要)
+    fun progressOf(totalXp: Int): Pair<Int, Int> { // (progress into current level, amount needed)
         var level = 1
         var remain = totalXp
         while (remain >= needFor(level)) {
@@ -39,7 +39,7 @@ object Leveling {
     fun domainTotals(xp: List<XPEntry>): Map<String, Int> =
         xp.groupBy { it.domain }.mapValues { e -> e.value.sumOf { it.amount } }
 
-    /** 周一 00:00 起 */
+    /** Since Monday 00:00 */
     fun weekStart(): Long {
         val c = Calendar.getInstance()
         c.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
@@ -84,13 +84,13 @@ object Leveling {
         val reviewed = AppStorage.versions("reviews").size
         val chatted = Mentors.all.count { GameStore.loadChat(it.id).isNotEmpty() }
         return listOf(
-            Achievement("🌱", "启程", "完成角色创建", GameStore.isOnboarded()),
-            Achievement("✅", "第一次兑现", "完成 1 个任务", doneCount >= 1),
-            Achievement("⚒️", "行动派", "完成 10 个任务", doneCount >= 10),
-            Achievement("🗺️", "有了地图", "拆解 1 个目标", decomposed >= 1),
-            Achievement("🧭", "Lv5 旅人", "达到 5 级", levelOf(total) >= 5),
-            Achievement("🪞", "照镜子", "生成 1 份周复盘", reviewed >= 1),
-            Achievement("🫂", "认识导师", "和 3 位导师聊过天", chatted >= 3),
+            Achievement("🌱", "First Steps", "Finish character setup", GameStore.isOnboarded()),
+            Achievement("✅", "First Win", "Complete 1 task", doneCount >= 1),
+            Achievement("⚒️", "Self-Starter", "Complete 10 tasks", doneCount >= 10),
+            Achievement("🗺️", "Map Maker", "Decompose 1 goal", decomposed >= 1),
+            Achievement("🧭", "Lv5 Traveler", "Reach level 5", levelOf(total) >= 5),
+            Achievement("🪞", "Mirror Work", "Generate 1 weekly review", reviewed >= 1),
+            Achievement("🫂", "Mentor Mates", "Chat with 3 mentors", chatted >= 3),
         )
     }
 }

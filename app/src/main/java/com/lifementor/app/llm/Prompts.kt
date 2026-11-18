@@ -36,26 +36,26 @@ Language and format requirements:
    - When updating a plan, retain still-valid items, mark changed items, and begin the profile snapshot with a one-sentence "> Update note:" describing the key change from the previous version."""
 
     fun initialMessage(profile: Profile): String = buildString {
-        appendLine("这是我的职业画像，请为我生成第一版职业发展规划：")
+        appendLine("Here is my career profile. Please generate the first version of my career development plan:")
         appendLine()
         appendLine(profile.toPromptJson())
     }
 
     fun updateMessage(profile: Profile, previous: String, request: String): String = buildString {
-        appendLine("请根据我的最新情况，更新我的职业发展规划。")
+        appendLine("Please update my career development plan based on my latest situation.")
         if (request.isNotBlank()) {
             appendLine()
-            appendLine("这次我特别想强调：$request")
+            appendLine("This time I especially want to emphasize: $request")
         }
         appendLine()
-        appendLine("我的最新职业画像：")
+        appendLine("My latest career profile:")
         appendLine(profile.toPromptJson())
         appendLine()
-        appendLine("上一版规划全文：")
+        appendLine("Full text of the previous plan:")
         appendLine(previous)
     }
 
-    // ---------------- M3 导师对话 ----------------
+    // ---------------- M3 mentor chat ----------------
 
     fun mentorSystem(mentor: Mentor, shared: String): String {
         val handoffs = MentorTaskBus.contextFor(mentor.id)
@@ -71,7 +71,7 @@ $shared$handoffSection
 Response rules: Write every user-visible sentence in English only. $ENGLISH_ONLY_RULE Keep a normal reply under 220 words, except when listing tasks. Use concise, polished Markdown with useful headings, short paragraphs, and bullets. Ask questions that help the user reason for themselves. When advice should become action, add an "Actions for this week" section with 1-3 specific checkbox tasks."""
     }
 
-    // ---------------- M4 目标拆解 ----------------
+    // ---------------- M4 goal decomposition ----------------
 
     const val DECOMPOSE_SYSTEM = """You are the LifeQuest goal-decomposition engine. Break a life goal into a three-level structure and return exactly one JSON object with no other text, explanation, or Markdown fence.
 
@@ -93,18 +93,18 @@ Decomposition principles:
 
     fun decomposeMessage(goalTitle: String, domainLabel: String, role: Role, profileJson: String, context: String): String =
         buildString {
-            appendLine("目标：$goalTitle")
-            appendLine("所属领域：$domainLabel")
-            appendLine("角色：${role.avatar} ${role.nickname}，阶段：${role.stage}；愿景：${role.vision}")
-            appendLine("画像：$profileJson")
-            appendLine("近期状态：$context")
-            appendLine("请按规范输出 JSON。")
+            appendLine("Goal: $goalTitle")
+            appendLine("Domain: $domainLabel")
+            appendLine("Role: ${role.avatar} ${role.nickname}; stage: ${role.stage}; vision: ${role.vision}")
+            appendLine("Profile: $profileJson")
+            appendLine("Recent status: $context")
+            appendLine("Output JSON only, strictly following the schema.")
         }
 
     fun retryDecomposeMessage(err: String): String =
-        "上次输出有问题（$err）。请重新输出严格符合规范的纯 JSON，不要其它文字。"
+        "Your previous output had a problem ($err). Re-output pure JSON that strictly follows the schema, with no other text."
 
-    // ---------------- B3 人生分支推演 ----------------
+    // ---------------- B3 life-branch simulation ----------------
 
     const val SIMULATION_SYSTEM = """You are the LifeQuest scenario-planning assistant. Use simulation to compare choices; never predict the future or present any path as guaranteed.
 Write every user-visible sentence in English only. $ENGLISH_ONLY_RULE Use concise but detailed Markdown. Compare at least three paths and clearly distinguish supplied facts, necessary assumptions, and information still needing confirmation.
@@ -152,7 +152,7 @@ Never invent user experience, market facts, or success probabilities. For other 
         appendLine("Compare at least three paths using the system structure, and label every assumption you make. Write the complete response in English.")
     }
 
-    // ---------------- B4 跨导师联动 ----------------
+    // ---------------- B4 cross-mentor handoff ----------------
 
     fun handoffSystem(source: Mentor, candidates: List<Mentor>): String = buildString {
         appendLine("Determine whether one mentor's advice warrants follow-up from another mentor. You are not an agent scheduler: do not call other models or execute tasks.")
@@ -178,7 +178,7 @@ Never invent user experience, market facts, or success probabilities. For other 
         appendLine("Suggest a handoff only when there is a clear, valuable cross-domain next step; otherwise return handoff=null.")
     }
 
-    // ---------------- M6 每周复盘 ----------------
+    // ---------------- M6 weekly review ----------------
 
     const val REVIEW_SYSTEM = """You are the LifeQuest review coach. Acknowledge effort, analyze obstacles, then propose a restrained plan for next week.
 Write every user-visible sentence in English only. $ENGLISH_ONLY_RULE Return concise, detailed Markdown without a code fence. Use this structure:
@@ -196,18 +196,18 @@ Principles:
 - Write every next-week recommendation as a direct, executable statement."""
 
     fun reviewMessage(weekLabel: String, stat: Leveling.WeekStat, goalLines: String): String = buildString {
-        appendLine("复盘周期：$weekLabel")
-        appendLine("完成任务 ${stat.doneCount} 项，欠 ${stat.openCount} 项，本周获得 ${stat.xpGained} XP")
+        appendLine("Review period: $weekLabel")
+        appendLine("Completed ${stat.doneCount} tasks, ${stat.openCount} still open, earned ${stat.xpGained} XP this week")
         if (stat.doneTitles.isNotEmpty()) {
-            appendLine("完成清单：")
+            appendLine("Delivered:")
             stat.doneTitles.forEach { appendLine("- $it") }
         }
         if (stat.openTitles.isNotEmpty()) {
-            appendLine("未完成清单：")
+            appendLine("Still open:")
             stat.openTitles.forEach { appendLine("- $it") }
         }
-        appendLine("活跃目标：")
+        appendLine("Active goals:")
         appendLine(goalLines)
-        appendLine("请生成复盘报告。")
+        appendLine("Generate the review report.")
     }
 }

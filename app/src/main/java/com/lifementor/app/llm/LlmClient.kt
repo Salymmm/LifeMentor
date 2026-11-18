@@ -29,7 +29,7 @@ class LlmException(message: String) : Exception(message)
 
 data class ChatMessage(val role: String, val content: String)
 
-/** 极简 OpenAI 兼容客户端：POST {baseUrl}/chat/completions */
+/** Minimal OpenAI-compatible client: POST {baseUrl}/chat/completions */
 object LlmClient {
     private const val STREAM_BUFFER_CAPACITY = 64
 
@@ -76,14 +76,14 @@ object LlmClient {
                             val json = try {
                                 JSONObject(text)
                             } catch (e: Exception) {
-                                throw LlmException("返回内容无法解析：" + text.take(200))
+                                throw LlmException("Unparsable response: " + text.take(200))
                             }
                             val choices = json.optJSONArray("choices")
-                                ?: throw LlmException("返回中没有 choices 字段，请检查模型名与 API 地址是否正确")
-                            if (choices.length() == 0) throw LlmException("模型返回为空")
+                                ?: throw LlmException("No choices field in the response — check the model name and Base URL")
+                            if (choices.length() == 0) throw LlmException("The model returned nothing")
                             val content = choices.optJSONObject(0)
                                 ?.optJSONObject("message")?.optString("content").orEmpty()
-                            if (content.isBlank()) throw LlmException("模型返回了空内容，请重试")
+                            if (content.isBlank()) throw LlmException("The model returned empty content. Please retry.")
                             continuation.resume(stripFences(content))
                         } catch (e: LlmException) {
                             continuation.resumeWithException(e)
@@ -91,7 +91,7 @@ object LlmClient {
                             continuation.resumeWithException(LlmException(networkError(e)))
                         } catch (e: Exception) {
                             continuation.resumeWithException(
-                                LlmException("返回内容无法解析：${e.message.orEmpty()}")
+                                LlmException("Unparsable response: ${e.message.orEmpty()}")
                             )
                         }
                     }
@@ -141,7 +141,7 @@ object LlmClient {
                             )
                         }
                         val responseBody = response.body
-                            ?: throw LlmException("返回内容为空，请重试")
+                            ?: throw LlmException("Empty streamed content. Please retry.")
                         readSse(responseBody) { data ->
                             if (data == "[DONE]") return@readSse false
                             val content = streamDelta(data)
@@ -158,7 +158,7 @@ object LlmClient {
                     if (isActive) close(LlmException(networkError(e)))
                 } catch (e: Exception) {
                     if (isActive) {
-                        close(LlmException("流式返回内容无法解析：${e.message.orEmpty()}"))
+                        close(LlmException("Unparsable streamed response: ${e.message.orEmpty()}"))
                     }
                 }
             }
@@ -205,10 +205,10 @@ object LlmClient {
         val json = try {
             JSONObject(data)
         } catch (e: Exception) {
-            throw LlmException("流式返回内容无法解析：${data.take(200)}")
+            throw LlmException("Unparsable streamed response: ${data.take(200)}")
         }
         val choices = json.optJSONArray("choices")
-            ?: throw LlmException("返回中没有 choices 字段，请检查模型名与 API 地址是否正确")
+            ?: throw LlmException("No choices field in the response — check the model name and Base URL")
         if (choices.length() == 0) return null
         return choices.optJSONObject(0)
             ?.optJSONObject("delta")
@@ -216,7 +216,7 @@ object LlmClient {
     }
 
     private fun networkError(e: IOException): String =
-        "网络请求失败：${e.message}\n请检查手机/模拟器网络，以及 API 地址是否可从该设备访问"
+        "Network request failed: ${e.message}\nCheck the device/emulator network and whether the API Base URL is reachable from it"
 
     private fun httpError(code: Int, body: String): String {
         val detail = try {
@@ -226,15 +226,15 @@ object LlmClient {
             body.take(200)
         }
         return when (code) {
-            401 -> "API Key 无效或权限不足（401）：$detail"
-            403 -> "访问被拒绝（403）：$detail"
-            404 -> "接口地址不对（404）：请确认 Base URL 填到 /v4 或 /v1 层级。$detail"
-            429 -> "触发限流或免费额度用尽（429）：$detail"
-            else -> "请求失败（HTTP $code）：$detail"
+            401 -> "Invalid or unauthorized API key (401): $detail"
+            403 -> "Access denied (403): $detail"
+            404 -> "Wrong endpoint (404): make sure the Base URL ends at /v4 or /v1. $detail"
+            429 -> "Rate limited or free quota exhausted (429): $detail"
+            else -> "Request failed (HTTP $code): $detail"
         }
     }
 
-    /** 有些模型会把整篇输出包在 ```markdown 围栏里，这里剥掉 */
+    /** Some models wrap the whole output in a ```markdown fence; strip it here */
     private fun stripFences(raw: String): String {
         val t = raw.trim()
         if (!t.startsWith("```") || !t.endsWith("```")) return t

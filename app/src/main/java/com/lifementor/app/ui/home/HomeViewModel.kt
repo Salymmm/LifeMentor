@@ -35,7 +35,7 @@ class HomeViewModel : ViewModel() {
         val (into, need) = Leveling.progressOf(total)
         val domainXp = Leveling.domainTotals(xp)
         val maxV = (domainXp.values.maxOrNull() ?: 0).coerceAtLeast(60)
-        val doms = listOf("scholar" to "学术", "pathfinder" to "职业", "heart" to "情绪", "vital" to "健康", "fortune" to "财务")
+        val doms = listOf("scholar" to "Study", "pathfinder" to "Career", "heart" to "Emotion", "vital" to "Health", "fortune" to "Money")
         val ach = Leveling.achievements()
         return Snap(
             role = GameStore.loadRole(),

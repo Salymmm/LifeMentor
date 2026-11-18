@@ -7,16 +7,50 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF0F6D5F),
-    secondary = Color(0xFF4C635C),
-    tertiary = Color(0xFF7A5900),
+/** Scrapbook theme from the art design: light mode mirrors the mockups; dark mode keeps the paper feel on a dark board */
+private val ScrapbookLight = lightColorScheme(
+    primary = ScrapRed,
+    onPrimary = PaperWhite,
+    primaryContainer = ScrapYellow,
+    onPrimaryContainer = InkBlack,
+    secondary = ScrapYellowDeep,
+    onSecondary = InkBlack,
+    secondaryContainer = ScrapPurple,
+    onSecondaryContainer = InkBlack,
+    tertiary = SkinTan,
+    onTertiary = InkBlack,
+    background = PaperBackground,
+    onBackground = InkBlack,
+    surface = PaperBackground,
+    onSurface = InkBlack,
+    surfaceVariant = Cardboard,
+    onSurfaceVariant = InkSoft,
+    surfaceContainer = PaperWhite,
+    surfaceContainerHigh = PaperWhite,
+    surfaceContainerHighest = PaperWhite,
+    outline = InkGray,
+    outlineVariant = Cardboard,
+    error = ScrapRedDeep,
+    onError = PaperWhite,
 )
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFF6FD8C4),
-    secondary = Color(0xFFB3CCC5),
-    tertiary = Color(0xFFFFD699),
+private val ScrapbookDark = darkColorScheme(
+    primary = ScrapRed,
+    onPrimary = PaperWhite,
+    primaryContainer = ScrapYellowDeep,
+    onPrimaryContainer = InkBlack,
+    secondary = ScrapYellow,
+    background = DeepSlate,
+    onBackground = PaperWhite,
+    surface = DeepSlate,
+    onSurface = PaperWhite,
+    surfaceVariant = Charcoal,
+    onSurfaceVariant = Color(0xFFBDB6A9),
+    surfaceContainer = Color(0xFF2A2A2E),
+    surfaceContainerHigh = Color(0xFF2A2A2E),
+    surfaceContainerHighest = Color(0xFF33333A),
+    outline = InkGray,
+    outlineVariant = Charcoal,
 )
 
 @Composable
@@ -25,7 +59,9 @@ fun LifeMentorTheme(
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = if (darkTheme) ScrapbookDark else ScrapbookLight,
+        typography = LifeMentorTypography,
+        shapes = LifeMentorShapes,
         content = content,
     )
 }

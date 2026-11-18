@@ -3,8 +3,6 @@ package com.lifementor.app.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import com.lifementor.app.data.GameStore
+import com.lifementor.app.ui.components.PaperNav
 import com.lifementor.app.ui.archive.ArchiveScreen
 import com.lifementor.app.ui.goals.GoalsScreen
 import com.lifementor.app.ui.home.HomeScreen
@@ -35,23 +34,18 @@ fun AppRoot() {
     var tab by rememberSaveable { mutableStateOf(HomeTab.HOME) }
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val items = listOf(
-                    Triple(HomeTab.HOME, "🏠", "主页"),
-                    Triple(HomeTab.GOALS, "🎯", "目标"),
-                    Triple(HomeTab.MENTORS, "🎓", "导师"),
-                    Triple(HomeTab.ARCHIVE, "📖", "档案"),
-                    Triple(HomeTab.SETTINGS, "⚙️", "设置"),
-                )
-                items.forEach { (t, emoji, label) ->
-                    NavigationBarItem(
-                        selected = tab == t,
-                        onClick = { tab = t },
-                        icon = { Text(emoji, fontSize = 22.sp) },
-                        label = { Text(label) },
-                    )
-                }
-            }
+            val all = HomeTab.entries
+            PaperNav(
+                items = listOf(
+                    "🗺" to "Journey",
+                    "🎯" to "Goals",
+                    "🎓" to "Mentors",
+                    "📖" to "Archive",
+                    "⚙️" to "Settings",
+                ),
+                selected = all.indexOf(tab),
+                onSelect = { tab = all[it] },
+            )
         }
     ) { insets ->
         Box(Modifier.fillMaxSize().padding(insets)) {
