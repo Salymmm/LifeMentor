@@ -36,7 +36,7 @@ class CalendarViewModel : ViewModel() {
             GameStore.toggleTask(taskId)
             error = null
             refresh()
-        } catch (_: Exception) { error = "保存任务状态失败，请重试" }
+        } catch (_: Exception) { error = "Could not save task status. Try again." }
     }
 
     fun setDate(taskId: Long, date: Long?) {
@@ -44,6 +44,6 @@ class CalendarViewModel : ViewModel() {
             GameStore.setTaskDueDate(taskId, date)
             error = null
             refresh()
-        } catch (_: Exception) { error = "保存日期失败，请重试" }
+        } catch (_: Exception) { error = "Could not save the date. Try again." }
     }
 }

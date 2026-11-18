@@ -19,11 +19,11 @@ object CalendarSyncPlanner {
     fun desired(source: CalendarSyncSource): List<CalendarSyncItem> {
         val goals = source.goals.associateBy { it.id }
         return source.tasks.filter { it.dueDate != null }.sortedBy { it.id }.map { task ->
-            val goal = requireNotNull(goals[task.goalId]) { "任务所属目标缺失，未执行同步" }
+            val goal = requireNotNull(goals[task.goalId]) { "A task has no matching goal. Sync was not started." }
             val draft = TaskCalendar.eventDraft(task, goal.title)
             CalendarSyncItem(task.id, draft.copy(description = draft.description +
-                "\n任务状态：${if (task.done) "已完成" else "未完成"}"))
-        }.also { require(it.map { item -> item.taskId }.distinct().size == it.size) { "任务编号重复，未执行同步" } }
+                "\nTask status: ${if (task.done) "Completed" else "Not completed"}"))
+        }.also { require(it.map { item -> item.taskId }.distinct().size == it.size) { "Duplicate task IDs. Sync was not started." } }
     }
 
     fun plan(desired: List<CalendarSyncItem>, existing: List<OwnedCalendarEvent>): CalendarSyncPlan {

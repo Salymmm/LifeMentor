@@ -118,7 +118,7 @@ class ChatViewModel internal constructor(
             var reply = ""
             try {
                 val settings = actions.settings()
-                if (settings.apiKey.isBlank()) throw LlmException("请先在「设置」页填入 API Key")
+                if (settings.apiKey.isBlank()) throw LlmException("Add your API key on the Settings page first")
 
                 if (simulation) {
                     actions.simulateStream(
@@ -132,7 +132,7 @@ class ChatViewModel internal constructor(
                     }
                 } else {
                     val mentor = actions.mentor(id)
-                        ?: throw LlmException("导师信息不可用，请返回后重试")
+                        ?: throw LlmException("Mentor unavailable — go back and retry")
                     val payload = ArrayList<ChatMessage>()
                     payload.add(ChatMessage("system", Prompts.mentorSystem(mentor, actions.sharedContext())))
                     (history + userMessage).takeLast(14).forEach {
@@ -144,13 +144,13 @@ class ChatViewModel internal constructor(
                     }
                 }
 
-                if (reply.isBlank()) throw LlmException("模型返回了空内容，请重试")
+                if (reply.isBlank()) throw LlmException("The model returned empty content. Please retry.")
                 if (isCurrentSend(id, token, operationToken)) actions.saveChat(id, messages.value)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
                 if (isCurrentSend(id, token, operationToken)) {
-                    error.value = e.message ?: "对话失败，请重试"
+                    error.value = e.message ?: "Chat failed, please retry"
                     if (reply.isBlank()) messages.value = history + userMessage
                     actions.saveChat(id, messages.value)
                 }
@@ -184,7 +184,7 @@ class ChatViewModel internal constructor(
         mentorId.value == id && sendToken == token && AiOperationRegistry.isCurrent(operationToken)
 
     private fun formatTranscript(history: List<Msg>): String = history.takeLast(14).joinToString("\n") {
-        "${if (it.role == "user") "用户" else "导师"}：${it.content}"
+        "${if (it.role == "user") "User" else "Mentor"}: ${it.content}"
     }.takeLast(6000)
 
     fun cancelSending() {
@@ -210,7 +210,7 @@ class ChatViewModel internal constructor(
         val id = mentorId.value ?: return
         if (sending.value || handoffBusy.value) return
         val transcript = messages.value.takeLast(14).joinToString("\n") {
-            "${if (it.role == "user") "用户" else "导师"}：${it.content}"
+            "${if (it.role == "user") "User" else "Mentor"}: ${it.content}"
         }.takeLast(6000)
         if (transcript.isBlank() || messages.value.none { it.role == "assistant" }) return
 
@@ -222,8 +222,8 @@ class ChatViewModel internal constructor(
         val operation = AiOperationRegistry.createJob(taskScope) { operationToken ->
             try {
                 val settings = actions.settings()
-                if (settings.apiKey.isBlank()) throw LlmException("请先在「设置」页填入 API Key")
-                val source = actions.mentor(id) ?: throw LlmException("导师信息不可用，请返回后重试")
+                if (settings.apiKey.isBlank()) throw LlmException("Add your API key on the Settings page first")
+                val source = actions.mentor(id) ?: throw LlmException("Mentor unavailable — go back and retry")
                 val suggestion = actions.proposeHandoff(
                     settings = settings,
                     source = source,
@@ -233,7 +233,7 @@ class ChatViewModel internal constructor(
                 )
                 if (isCurrentHandoff(id, token, operationToken)) {
                     if (suggestion == null) {
-                        handoffStatus.value = "这段对话暂时没有合适的跨导师建议"
+                        handoffStatus.value = "No useful cross-mentor suggestion for this conversation right now"
                     } else {
                         handoffSuggestion.value = suggestion
                     }
@@ -241,7 +241,7 @@ class ChatViewModel internal constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
-                if (isCurrentHandoff(id, token, operationToken)) error.value = e.message ?: "联动建议生成失败，请重试"
+                if (isCurrentHandoff(id, token, operationToken)) error.value = e.message ?: "Handoff suggestion failed, please retry"
             } finally {
                 if (isCurrentHandoff(id, token, operationToken)) {
                     handoffBusy.value = false
@@ -259,12 +259,12 @@ class ChatViewModel internal constructor(
     fun acceptHandoff() {
         val suggestion = handoffSuggestion.value ?: return
         if (!actions.acceptHandoff(suggestion)) {
-            error.value = "保存联动建议失败，请重试"
+            error.value = "Could not save the handoff suggestion, please retry"
             return
         }
         val targetName = actions.mentor(suggestion.targetMentorId)?.name ?: suggestion.targetMentorId
         handoffSuggestion.value = null
-        handoffStatus.value = "已确认。本次应用运行期间，下次进入 $targetName 时会带入；若退出重启应用，需要重新生成。"
+        handoffStatus.value = "Confirmed. It carries over when you open $targetName during this app session; after a restart it needs to be regenerated."
     }
 
     fun dismissHandoff() {

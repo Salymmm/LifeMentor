@@ -16,10 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -52,6 +49,17 @@ import com.lifementor.app.data.TaskItem
 import com.lifementor.app.data.taskBranchIds
 import com.lifementor.app.ui.components.TaskDateDialog
 import com.lifementor.app.ui.components.TaskDateAction
+import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.MentorAvatar
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.ScrapCard
+import com.lifementor.app.ui.components.StickerButton
+import com.lifementor.app.ui.components.Tape
+import com.lifementor.app.ui.theme.Charcoal
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.theme.ScrapRed
+import com.lifementor.app.ui.theme.ScrapYellow
 
 private data class NewTask(val goalId: Long, val parentId: Long?)
 
@@ -70,12 +78,16 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("人生目标", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Column {
+                DisplayTitle("Goals")
+                Text("Life Goals", style = MaterialTheme.typography.labelSmall, color = InkSoft)
+            }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onOpenCalendar) { Text("日历") }
-            Button(onClick = { showAdd = true }) { Text("新增目标") }
+            PaperChip("Calendar", onClick = onOpenCalendar)
+            Spacer(Modifier.width(8.dp))
+            StickerButton("+ New goal", onClick = { showAdd = true })
         }
-        Text(listOfNotNull(vm.xpToast.value, "点任务名称可编辑或删除").joinToString(" · "), style = MaterialTheme.typography.bodySmall,
+        Text(listOfNotNull(vm.xpToast.value, "Tap a task title to edit or delete").joinToString(" · "), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
         vm.error.value?.let {
             Text(
@@ -96,11 +108,16 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
         ) {
             if (active.isEmpty() && done.isEmpty()) {
                 item {
-                    Card(Modifier.fillMaxWidth()) {
+                    ScrapCard(
+                        paperColor = PaperWhite,
+                        shadowColor = Charcoal.copy(alpha = 0.18f),
+                        fillWidth = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                         Column(Modifier.padding(20.dp)) {
-                            Text("还没有目标", fontWeight = FontWeight.Bold)
+                            Text("No goals yet", fontWeight = FontWeight.Bold)
                             Text(
-                                "点「新增目标」写下你在意的事，可以手动规划，也可以让 AI 帮你拆解。",
+                                "Tap New goal and write down what matters. Plan tasks yourself or let AI split the goal into steps.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -110,7 +127,7 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
             }
             if (active.isNotEmpty()) {
                 item(key = "active-heading") {
-                    Text("进行中", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 4.dp))
+                    Text("In progress", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 4.dp))
                 }
                 items(active, key = { it.id }) { goal ->
                     GoalCard(
@@ -124,7 +141,7 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
             }
             if (done.isNotEmpty()) {
                 item(key = "done-heading") {
-                    Text("已完成", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 4.dp))
+                    Text("Completed", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 4.dp))
                 }
                 items(done, key = { it.id }) { goal ->
                     GoalCard(
@@ -187,27 +204,27 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
         val children = taskBranchIds(vm.tasks, task.id).size - 1
         AlertDialog(
             onDismissRequest = { deleteTaskId = null },
-            title = { Text("删除任务？") },
-            text = { Text("将删除「${task.title}」${if (children > 0) "及其 $children 个子任务" else ""}。此操作不可撤销，已获得的经验值保留。") },
+            title = { Text("Delete task?") },
+            text = { Text("Delete “${task.title}”${if (children > 0) " and its $children subtasks" else ""}? This cannot be undone. Earned XP is kept.") },
             confirmButton = { TextButton(
                 enabled = vm.decomposingId.value != task.goalId,
                 onClick = { if (vm.deleteTask(task.id)) { deleteTaskId = null; editTaskId = null } },
-            ) { Text("确认删除", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { deleteTaskId = null }) { Text("取消") } },
+            ) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { deleteTaskId = null }) { Text("Cancel") } },
         )
     }
     vm.goals.find { it.id == deleteGoalId }?.let { goal ->
         AlertDialog(
             onDismissRequest = { deleteGoalId = null },
-            title = { Text("删除目标？") },
-            text = { Text("将删除「${goal.title}」及其中的 ${vm.tasks.count { it.goalId == goal.id }} 项任务。此操作不可撤销。") },
+            title = { Text("Delete goal?") },
+            text = { Text("Delete “${goal.title}” and its ${vm.tasks.count { it.goalId == goal.id }} tasks? This cannot be undone.") },
             confirmButton = {
                 TextButton(
                     onClick = { vm.deleteGoal(goal.id); deleteGoalId = null },
                     enabled = vm.decomposingId.value != goal.id,
-                ) { Text("确认删除") }
+                ) { Text("Delete") }
             },
-            dismissButton = { TextButton(onClick = { deleteGoalId = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { deleteGoalId = null }) { Text("Cancel") } },
         )
     }
 }
@@ -229,19 +246,27 @@ private fun GoalCard(
     val open = vm.expanded[goal.id] ?: !goal.decomposed
     var showManagement by remember(goal.id) { mutableStateOf(false) }
 
-    Card(Modifier.fillMaxWidth()) {
+    ScrapCard(
+        paperColor = if (active) PaperWhite else ScrapYellow.copy(alpha = 0.6f),
+        shadowColor = Charcoal.copy(alpha = 0.18f),
+        rotation = -0.2f,
+        fillWidth = true,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Tape(Modifier.align(Alignment.End))
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .background(
-                            (mentor?.color ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.16f),
-                            CircleShape,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(mentor?.emoji ?: "✨", fontSize = 20.sp)
+                if (mentor != null) {
+                    MentorAvatar(mentor, 40.dp, fallbackEmojiSize = 20.sp)
+                } else {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("✨", fontSize = 20.sp)
+                    }
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -253,36 +278,35 @@ private fun GoalCard(
                             androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
                     )
                     Text(
-                        "${mentor?.domainLabel ?: goal.domain} · ${if (active) "进行中" else "已完成"}",
+                        "${mentor?.domainLabel ?: goal.domain} · ${if (active) "In progress" else "Completed"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (sub.isNotEmpty()) {
                         Text(
-                            "${sub.count { it.done }}/${sub.size} 项任务已完成",
+                            "${sub.count { it.done }}/${sub.size} tasks completed",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
                 if (sub.isNotEmpty()) {
-                    TextButton(onClick = { vm.expanded[goal.id] = !open }) {
-                        Text(if (open) "收起" else "展开")
-                    }
+                    PaperChip(if (open) "Collapse" else "Expand",
+                        onClick = { vm.expanded[goal.id] = !open })
                 }
                 Box {
                     IconButton(
                         onClick = { showManagement = true },
-                        modifier = Modifier.semantics { contentDescription = "管理目标：${goal.title}" },
+                        modifier = Modifier.semantics { contentDescription = "Manage goal: ${goal.title}" },
                     ) { Text("⋮", fontSize = 24.sp) }
                     DropdownMenu(expanded = showManagement, onDismissRequest = { showManagement = false }) {
                         DropdownMenuItem(
-                            text = { Text("编辑目标") },
+                            text = { Text("Edit goal") },
                             enabled = !isDecomposing,
                             onClick = { showManagement = false; onEdit() },
                         )
                         DropdownMenuItem(
-                            text = { Text(if (active) "完成此目标" else "撤回完成") },
+                            text = { Text(if (active) "Complete goal" else "Undo completion") },
                             enabled = !isDecomposing,
                             onClick = {
                                 showManagement = false
@@ -290,7 +314,7 @@ private fun GoalCard(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("删除此目标", color = MaterialTheme.colorScheme.error) },
+                            text = { Text("Delete goal", color = MaterialTheme.colorScheme.error) },
                             enabled = !isDecomposing,
                             onClick = { showManagement = false; onDelete() },
                         )
@@ -301,18 +325,19 @@ private fun GoalCard(
             if (active) {
                 Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (!goal.decomposed) {
-                        Button(onClick = { vm.decompose(goal.id) }, enabled = !vm.busy.value) {
-                            if (isDecomposing) {
-                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(6.dp))
-                                Text("拆解中…")
-                            } else {
-                                Text("AI 拆解目标")
-                            }
+                        if (isDecomposing) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = ScrapRed)
+                            Spacer(Modifier.width(6.dp))
                         }
+                        StickerButton(
+                            if (isDecomposing) "Decomposing…" else "✂ AI-decompose",
+                            onClick = { vm.decompose(goal.id) },
+                            enabled = !vm.busy.value,
+                            arrow = !isDecomposing,
+                        )
                         Spacer(Modifier.width(6.dp))
                     }
-                    TextButton(onClick = { onAddTask(null) }, enabled = canMutate) { Text("添加任务") }
+                    PaperChip("+ Task", onClick = { onAddTask(null) }, enabled = canMutate)
                 }
             }
 
@@ -356,11 +381,11 @@ private fun TaskRow(
         ) {
             Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) }, enabled = canMutate)
             Column(Modifier.weight(1f).clickable(enabled = canMutate || textOverflows || textExpanded,
-                onClickLabel = if (canMutate) "编辑「${t.title}」" else if (textExpanded) "收起文字" else "展开全文") {
+                onClickLabel = if (canMutate) "Edit “${t.title}”" else if (textExpanded) "Collapse text" else "Expand full text") {
                 if (canMutate) onEdit() else textExpanded = !textExpanded
             }) {
                 if (depth > 3) {
-                    Text("第 ${depth + 1} 层子任务", style = MaterialTheme.typography.labelSmall,
+                    Text("Subtask level ${depth + 1}", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
@@ -380,12 +405,12 @@ private fun TaskRow(
             TaskDateAction(t.title, t.dueDateText(), canMutate) { showDatePicker = true }
             if (canMutate) {
                 IconButton(onClick = onAddSubtask, modifier = Modifier.size(40.dp)
-                    .semantics { contentDescription = "为「${t.title}」添加子任务" }) { Text("＋", fontSize = 24.sp) }
+                    .semantics { contentDescription = "Add subtask to “${t.title}”" }) { Text("＋", fontSize = 24.sp) }
             }
             if (childCount > 0) {
                 val open = vm.expandedTasks[t.id] == true
                 IconButton(onClick = { vm.expandedTasks[t.id] = !open }, modifier = Modifier.size(36.dp)
-                    .semantics { contentDescription = if (open) "收起「${t.title}」子任务" else "展开「${t.title}」的 $childCount 个子任务" }) {
+                    .semantics { contentDescription = if (open) "Collapse subtasks of “${t.title}”" else "Expand $childCount subtasks of “${t.title}”" }) {
                     Text(if (open) "▾" else "▸", fontSize = 20.sp)
                 }
             }

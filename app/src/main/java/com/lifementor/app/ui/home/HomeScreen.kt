@@ -9,13 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +52,16 @@ import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.ZonedDateTime
+import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.ScrapCard
+import com.lifementor.app.ui.components.StickerButton
+import com.lifementor.app.ui.theme.Cardboard
+import com.lifementor.app.ui.theme.Charcoal
+import com.lifementor.app.ui.theme.InkBlack
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.theme.ScrapRed
 import com.lifementor.app.ui.components.RadarChart
 import com.lifementor.app.ui.components.TaskDateDialog
 import com.lifementor.app.ui.components.TaskDateAction
@@ -107,13 +116,19 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("我的一天", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f))
-            TextButton(onClick = goCalendar) { Text("日历") }
+            DisplayTitle("Journey", modifier = Modifier.weight(1f))
+            PaperChip("Calendar", onClick = goCalendar)
         }
-        // 角色卡
-        Card(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Character card
+        ScrapCard(
+            paperColor = PaperWhite,
+            shadowColor = Charcoal.copy(alpha = 0.18f),
+            rotation = -0.2f,
+            fillWidth = true,
+            contentPadding = PaddingValues(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(
                     Modifier
                         .size(56.dp)
@@ -126,24 +141,26 @@ fun HomeScreen(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "${s.role.nickname}　Lv.${s.level}",
+                        "${s.role.nickname}  Lv.${s.level}",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        color = InkBlack,
                     )
                     Text(
-                        s.role.stage.ifBlank { "人生玩家" },
+                        s.role.stage.ifBlank { "Life player" },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = InkSoft,
                     )
                     Spacer(Modifier.height(6.dp))
                     LinearProgressIndicator(
                         progress = { s.into.toFloat() / s.need },
                         modifier = Modifier.fillMaxWidth().height(8.dp),
+                        color = ScrapRed,
+                        trackColor = Cardboard,
                     )
                     Text(
-                        "${s.into}/${s.need} XP　·　总 ${s.totalXp} XP",
+                        "${s.into}/${s.need} XP  ·  ${s.totalXp} XP total",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = InkSoft,
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -151,13 +168,14 @@ fun HomeScreen(
                     Text(
                         "${s.achievementsDone}/${s.achievementsTotal}",
                         style = MaterialTheme.typography.labelSmall,
+                        color = InkBlack,
                     )
                 }
             }
         }
 
         // 五维成长
-        ExpandableCard("五维成长") {
+        ExpandableCard("Five-dimension growth") {
             RadarChart(
                 labels = s.radar.map { it.first },
                 values = s.radar.map { it.second },
@@ -177,21 +195,21 @@ fun HomeScreen(
 
         if (s.role.vision.isNotBlank()) {
             Text(
-                "「${s.role.vision}」",
+                "\u201c${s.role.vision}\u201d",
                 style = MaterialTheme.typography.bodyMedium,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                color = MaterialTheme.colorScheme.primary,
+                color = InkSoft,
             )
         }
 
         vm.error.value?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        AgendaSection("今天", s.agenda.today, "今天没有已安排的行动", s.goalTitles, vm) { dateTaskId = it }
-        TextButton(onClick = goGoals) { Text("添加行动 / 安排日期 →") }
-        AgendaSection("待重新安排", s.agenda.overdue, "没有需要重新安排的行动", s.goalTitles, vm) { dateTaskId = it }
-        AgendaSection("未来", s.agenda.future, "还没有未来的安排", s.goalTitles, vm) { dateTaskId = it }
-        AgendaSection("未安排", s.agenda.unscheduled, "所有行动都已安排日期", s.goalTitles, vm) { dateTaskId = it }
+        AgendaSection("Today", s.agenda.today, "No actions scheduled for today", s.goalTitles, vm) { dateTaskId = it }
+        TextButton(onClick = goGoals) { Text("Add actions / schedule dates →") }
+        AgendaSection("Reschedule", s.agenda.overdue, "No actions need rescheduling", s.goalTitles, vm) { dateTaskId = it }
+        AgendaSection("Upcoming", s.agenda.future, "No upcoming actions", s.goalTitles, vm) { dateTaskId = it }
+        AgendaSection("Unscheduled", s.agenda.unscheduled, "All actions have dates", s.goalTitles, vm) { dateTaskId = it }
 
-        TextButton(onClick = goMentors) { Text("找导师聊聊 →") }
+        StickerButton("Talk to a mentor", onClick = goMentors, arrow = true)
         Spacer(Modifier.height(8.dp))
     }
 
@@ -220,7 +238,7 @@ private fun AgendaSection(
     vm: HomeViewModel,
     onSetDate: (Long) -> Unit,
 ) {
-    ExpandableCard("$title · ${tasks.size}", initiallyExpanded = title == "今天" || title == "待重新安排") {
+    ExpandableCard("$title · ${tasks.size}", initiallyExpanded = title == "Today" || title == "Reschedule") {
         if (tasks.isEmpty()) {
             Text(emptyText, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -230,7 +248,7 @@ private fun AgendaSection(
                 Checkbox(checked = false, onCheckedChange = { vm.complete(task) })
                 Column(Modifier.weight(1f)) {
                     Text(task.title, fontSize = 14.sp)
-                    Text("${goalTitles[task.goalId].orEmpty()} · ${task.dueDateText() ?: "未安排日期"}",
+                    Text("${goalTitles[task.goalId].orEmpty()} · ${task.dueDateText() ?: "No date"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -238,7 +256,7 @@ private fun AgendaSection(
             }
         }
         if (tasks.isNotEmpty()) {
-            Text("首次完成每项行动 +10 XP", style = MaterialTheme.typography.bodySmall,
+            Text("First completion of each action: +10 XP", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

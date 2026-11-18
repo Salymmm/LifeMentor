@@ -114,8 +114,8 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("‹ 返回") }
-                Text("任务日历", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                TextButton(onClick = onBack) { Text("‹ Back") }
+                Text("Task Calendar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
         }
         item {
@@ -126,17 +126,17 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
                 Column(Modifier.padding(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { showMonth(month.minusMonths(1)) },
-                            modifier = Modifier.semantics { contentDescription = "上个月" }) { Text("‹", fontSize = 24.sp) }
-                        Text("${month.year}年${month.monthValue}月", Modifier.weight(1f), textAlign = TextAlign.Center,
+                            modifier = Modifier.semantics { contentDescription = "Previous month" }) { Text("‹", fontSize = 24.sp) }
+                        Text("$month", Modifier.weight(1f), textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold)
                         TextButton(onClick = { showMonth(month.plusMonths(1)) },
-                            modifier = Modifier.semantics { contentDescription = "下个月" }) { Text("›", fontSize = 24.sp) }
+                            modifier = Modifier.semantics { contentDescription = "Next month" }) { Text("›", fontSize = 24.sp) }
                         TextButton(onClick = {
                             today = LocalDate.now(); monthText = YearMonth.from(today).toString(); dayText = today.toString()
-                        }) { Text("今天") }
+                        }) { Text("Today") }
                     }
                     Row(Modifier.fillMaxWidth()) {
-                        listOf("一", "二", "三", "四", "五", "六", "日").forEach {
+                        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach {
                             Text(it, Modifier.weight(1f), textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.labelSmall)
                         }
@@ -153,11 +153,11 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
                                         .then(if (date == today) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
                                         .selectable(selected = date == selectedDay, role = Role.Button,
                                             onClick = { dayText = date.toString() })
-                                        .semantics { contentDescription = "$date，$count 项任务${if (date == today) "，今天" else ""}" },
+                                        .semantics { contentDescription = "$date, $count tasks${if (date == today) ", today" else ""}" },
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center) {
                                         Text("${date.dayOfMonth}", style = MaterialTheme.typography.bodyMedium)
-                                        if (count > 0) Text(if (count > 99) "99+项" else "${count}项",
+                                        if (count > 0) Text(if (count > 99) "99+" else "$count",
                                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
                                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
@@ -169,18 +169,18 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
             }
         }
         item {
-            TextButton(onClick = goGoals) { Text("未安排日期：${data.unscheduledCount} 项 · 前往目标安排 →") }
-            Text("进行中目标的任务", style = MaterialTheme.typography.labelSmall,
+            TextButton(onClick = goGoals) { Text("Unscheduled: ${data.unscheduledCount} · Schedule in Goals →") }
+            Text("Tasks from active goals", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("$selectedDay · ${dayTasks.size} 项 · 已完成 ${dayTasks.count { it.done }}",
+            Text("$selectedDay · ${dayTasks.size} tasks · ${dayTasks.count { it.done }} done",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("日历图标改日期。↗ 是手动添加，不参与批量更新；批量同步请用上方按钮。",
+            Text("Use the calendar icon to change a date. ↗ adds events manually; those events are excluded from bulk updates. Use the button above for bulk sync.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         vm.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
         message?.let { item { Text(it, style = MaterialTheme.typography.bodySmall) } }
         if (dayTasks.isEmpty()) item {
-            Text("这一天还没有安排任务，可以从目标页为任务设置日期。", style = MaterialTheme.typography.bodyMedium)
+            Text("No tasks scheduled for this day. Set task dates in Goals.", style = MaterialTheme.typography.bodyMedium)
         }
         items(dayTasks, key = { it.id }) { task ->
             Card(Modifier.fillMaxWidth()) {
@@ -194,7 +194,7 @@ fun CalendarScreen(onBack: () -> Unit, goGoals: () -> Unit, vm: CalendarViewMode
                     TaskDateAction(task.title, task.dueDateText()) { dateTaskId = task.id }
                     IconButton(onClick = {
                         message = CalendarBridge.open(context, task, data.goalTitles[task.goalId].orEmpty())
-                    }, modifier = Modifier.semantics { contentDescription = "将「${task.title}」添加到手机日历" }) {
+                    }, modifier = Modifier.semantics { contentDescription = "Add \"${task.title}\" to device calendar" }) {
                         Text("↗", fontSize = 22.sp)
                     }
                 }

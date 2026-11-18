@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** 五维成长雷达图：values 为 0~1 归一化值，纯 Canvas 自绘，无第三方依赖 */
+/** Five-dimension growth radar: values are normalized 0–1, drawn with raw Canvas, no third-party deps */
 @Composable
 fun RadarChart(
     labels: List<String>,
@@ -31,7 +31,7 @@ fun RadarChart(
             return Offset(cx + (radius * Math.cos(angle)).toFloat(), cy + (radius * Math.sin(angle)).toFloat())
         }
 
-        // 同心网格
+        // concentric grid
         for (ring in 1..3) {
             val p = Path()
             for (i in 0 until sides) {
@@ -41,11 +41,11 @@ fun RadarChart(
             p.close()
             drawPath(p, gridColor, style = Stroke(width = 1.dp.toPx()))
         }
-        // 轴线
+        // axis lines
         for (i in 0 until sides) {
             drawLine(gridColor, Offset(cx, cy), vertex(i, r), 1.dp.toPx())
         }
-        // 数据多边形
+        // data polygon
         val data = Path()
         for (i in 0 until sides) {
             val v = vertex(i, r * values[i].coerceIn(0.06f, 1f))
@@ -54,11 +54,11 @@ fun RadarChart(
         data.close()
         drawPath(data, color.copy(alpha = 0.28f))
         drawPath(data, color, style = Stroke(width = 2.5.dp.toPx()))
-        // 顶点
+        // vertices
         for (i in 0 until sides) {
             drawCircle(color, 4.dp.toPx(), vertex(i, r * values[i].coerceIn(0.06f, 1f)))
         }
-        // 标签
+        // labels
         val paint = android.graphics.Paint().apply {
             setColor(
                 android.graphics.Color.argb(

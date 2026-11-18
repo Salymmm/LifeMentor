@@ -30,7 +30,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** 轻量 Markdown 渲染（无第三方依赖）：标题/列表/任务/引用/代码/分割线/粗体/行内代码 */
+/** Lightweight Markdown renderer (no third-party deps): headings / lists / tasks / quotes / code / rules / bold / inline code */
 private sealed class Block {
     data class Heading(val level: Int, val text: String) : Block()
     data class Paragraph(val text: String) : Block()
@@ -43,7 +43,7 @@ private sealed class Block {
     object Rule : Block()
 }
 
-private val numberedRegex = Regex("^(\\d+)[.)、]\\s*(.+)$")
+private val numberedRegex = Regex("^(\\d+)[.)\uFF0E]\\s*(.+)$")
 private val inlineRegex = Regex("""\*\*([^*]+)\*\*|`([^`]+)`""")
 private val inlineBg = Color(0x22888888)
 

@@ -32,10 +32,10 @@ class CalendarSyncProvider(private val context: Context) {
     fun selectedId(): Long? = if (prefs.contains("calendar_id")) prefs.getLong("calendar_id", -1) else null
 
     fun select(id: Long) {
-        if (!prefs.edit().putLong("calendar_id", id).commit()) throw IOException("无法保存目标日历")
+        if (!prefs.edit().putLong("calendar_id", id).commit()) throw IOException("Could not save the selected calendar")
     }
 
-    private fun requirePermissions() { check(hasPermissions(context)) { "请先允许日历读写权限" } }
+    private fun requirePermissions() { check(hasPermissions(context)) { "Allow calendar read and write access first" } }
 
     fun calendars(): List<CalendarSyncTarget> {
         requirePermissions()
@@ -43,15 +43,15 @@ class CalendarSyncProvider(private val context: Context) {
             arrayOf("_id", CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME),
             "${CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL}>=?",
             arrayOf(CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR.toString()), "_id ASC")
-            ?: error("手机日历暂时不可用，请稍后重试")
+            ?: error("Device calendar is temporarily unavailable. Try again later.")
         return cursor.use {
-            buildList { while (it.moveToNext()) add(CalendarSyncTarget(it.getLong(0), it.getString(1) ?: "日历", it.getString(2).orEmpty())) }
+            buildList { while (it.moveToNext()) add(CalendarSyncTarget(it.getLong(0), it.getString(1) ?: "Calendar", it.getString(2).orEmpty())) }
         }
     }
 
     private fun identity(): CalendarSyncIdentity {
         val owner = prefs.getString("owner", null) ?: UUID.randomUUID().toString().also {
-            if (!prefs.edit().putString("owner", it).commit()) throw IOException("无法保存同步标识")
+            if (!prefs.edit().putString("owner", it).commit()) throw IOException("Could not save the sync identity")
         }
         return CalendarSyncIdentity(owner)
     }
@@ -59,7 +59,7 @@ class CalendarSyncProvider(private val context: Context) {
     fun synchronize(calendarId: Long, source: CalendarSyncSource): CalendarSyncPlan {
         requirePermissions()
         val desired = CalendarSyncPlanner.desired(source)
-        check(calendars().any { it.id == calendarId }) { "目标日历已不可写，请重新选择" }
+        check(calendars().any { it.id == calendarId }) { "The selected calendar is no longer writable. Choose another calendar." }
         val identity = identity()
         val events = readOwned(calendarId, identity)
         val plan = CalendarSyncPlanner.plan(desired, events)
@@ -76,7 +76,7 @@ class CalendarSyncProvider(private val context: Context) {
             CalendarContract.Events.EXRULE, CalendarContract.Events.EXDATE, CalendarContract.Events.DURATION),
             "${CalendarContract.Events.CALENDAR_ID}=? AND ${CalendarContract.Events.CUSTOM_APP_PACKAGE}=? AND ${CalendarContract.Events.DELETED}=0",
             arrayOf(calendarId.toString(), context.packageName), "_id ASC")
-            ?: error("无法读取已同步日程，未执行同步")
+            ?: error("Could not read synced events. Nothing was synced.")
         return cursor.use {
             buildList {
                 while (it.moveToNext()) {

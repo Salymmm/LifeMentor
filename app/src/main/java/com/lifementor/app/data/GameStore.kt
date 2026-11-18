@@ -6,7 +6,7 @@ import java.io.File
 import com.lifementor.app.notify.TaskReminders
 import androidx.compose.runtime.mutableIntStateOf
 
-/** 目标 / 任务 / XP / 聊天 / 角色 的本地仓库（JSON 文件实现，后续可无痛迁移 Room） */
+/** Local store for goals / tasks / XP / chats / role (JSON files; painless migration to Room later) */
 object GameStore {
     val taskRevision = mutableIntStateOf(0)
     private val ctx get() = AppStorage.appCtx
@@ -16,7 +16,7 @@ object GameStore {
     private val roleFile get() = File(ctx.filesDir, "role.json")
     private val chatsDir get() = File(ctx.filesDir, "chats").apply { mkdirs() }
 
-    // ---------- 角色 ----------
+    // ---------- Role ----------
     fun loadRole(): Role =
         if (roleFile.exists()) Role.fromJson(roleFile.readText()) else Role()
 
@@ -24,7 +24,7 @@ object GameStore {
 
     fun isOnboarded(): Boolean = AppStorage.prefs().optBoolean("onboarded", false)
 
-    // ---------- 目标 ----------
+    // ---------- Goals ----------
     fun loadGoals(): MutableList<Goal> = try {
         val a = JSONArray(if (goalsFile.exists()) goalsFile.readText() else "[]")
         (0 until a.length()).map { Goal.from(a.getJSONObject(it)) }.toMutableList()
@@ -64,7 +64,7 @@ object GameStore {
         saveGoals(loadGoals().map { if (it.id == id) it.copy(decomposed = true) else it })
     }
 
-    // ---------- 任务 ----------
+    // ---------- Tasks ----------
     fun loadTasks(): MutableList<TaskItem> = try {
         val a = JSONArray(if (tasksFile.exists()) tasksFile.readText() else "[]")
         (0 until a.length()).map { TaskItem.from(a.getJSONObject(it)) }.toMutableList()
@@ -122,7 +122,7 @@ object GameStore {
         return awarded
     }
 
-    /** 勾选/取消勾选任务；首次完成时按档位发放 XP（只奖不罚，反悔不回收） */
+    /** Toggle a task; on first completion grant tier-based XP (reward only, never clawed back) */
     fun toggleTask(taskId: Long): Int {
         val tasks = loadTasks()
         val idx = tasks.indexOfFirst { it.id == taskId }
@@ -151,10 +151,10 @@ object GameStore {
     }
 
     fun addTask(goalId: Long, title: String, parentId: Long? = null, dueDate: Long? = null): TaskItem {
-        require(loadGoals().any { it.id == goalId && it.status == "active" }) { "请在进行中的目标下添加任务" }
+        require(loadGoals().any { it.id == goalId && it.status == "active" }) { "Add tasks under an active goal" }
         val tasks = loadTasks()
         val parent = parentId?.let { id ->
-            tasks.find { it.id == id } ?: throw IllegalArgumentException("上一级任务已不存在，请重新选择")
+            tasks.find { it.id == id } ?: throw IllegalArgumentException("The parent task no longer exists. Please choose another.")
         }
         val id = maxOf(System.currentTimeMillis(), (tasks.maxOfOrNull { it.id } ?: 0L) + 1)
         val task = TaskItem.manual(id, goalId, title, parent, dueDate)
@@ -182,7 +182,7 @@ object GameStore {
         xpFile.writeText(XPEntry.listToJson(list))
     }
 
-    // ---------- 聊天 ----------
+    // ---------- Chat ----------
     fun loadChat(mentorId: String): List<Msg> {
         return try {
             val f = File(chatsDir, "$mentorId.json")
@@ -207,7 +207,7 @@ object GameStore {
         taskRevision.intValue++
     }
 
-    /** 创建向导完成：写角色 + 勾选的主线自动生成目标 */
+    /** Onboarding finished: persist the role and auto-create goals from the chosen focuses */
     fun completeOnboarding(role: Role, focusDomains: List<Pair<String, String>>) {
         saveRole(role)
         val goals = loadGoals()

@@ -51,12 +51,12 @@ class ReviewViewModel : ViewModel() {
         if (running.value) return
         val settings = AppStorage.loadSettings()
         if (settings.apiKey.isBlank()) {
-            error.value = "请先在「设置」页填入 API Key"
+            error.value = "Add your API key on the Settings page first"
             return
         }
         val tasks = GameStore.loadTasks()
         if (tasks.isEmpty()) {
-            error.value = "还没有任务数据——先在「目标」页拆解一个目标，有行动记录后复盘才有料"
+            error.value = "No task data yet — decompose a goal on the Goals page first; reviews need action history"
             return
         }
         running.value = true
@@ -66,8 +66,8 @@ class ReviewViewModel : ViewModel() {
                 val stat = Leveling.weeklyStat(tasks, GameStore.loadXP())
                 val goalLines = GameStore.loadGoals().filter { it.status == "active" }.joinToString("\n") { g ->
                     val sub = tasks.filter { it.goalId == g.id }
-                    "- ${g.title}（完成 ${sub.count { t -> t.done }}/${sub.size}）"
-                }.ifBlank { "（暂无活跃目标）" }
+                    "- ${g.title} (done ${sub.count { t -> t.done }}/${sub.size})"
+                }.ifBlank { "(no active goals)" }
                 val fmt = SimpleDateFormat("MM-dd", Locale.getDefault())
                 val label = "${fmt.format(Date(Leveling.weekStart()))} ~ ${fmt.format(Date())}"
                 val md = LlmClient.chat(
@@ -84,7 +84,7 @@ class ReviewViewModel : ViewModel() {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
-                if (AiOperationRegistry.isCurrent(token)) error.value = e.message ?: "生成失败"
+                if (AiOperationRegistry.isCurrent(token)) error.value = e.message ?: "Generation failed"
             } finally {
                 if (reviewJob === coroutineContext.job) {
                     reviewJob = null

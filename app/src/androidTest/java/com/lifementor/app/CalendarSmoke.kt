@@ -35,11 +35,11 @@ internal object CalendarSmoke {
             }
             val guidance = CalendarBridge.open(recordingContext, task, "测试目标")
             verify(launched?.action == Intent.ACTION_INSERT, "Open hands the draft to the app context")
-            verify(guidance.contains("确认保存"), "Does not claim the event was saved")
+            verify(guidance.contains("Confirm and save"), "Does not claim the event was saved")
             val missingContext = object : ContextWrapper(instrumentation.targetContext) {
                 override fun startActivity(intent: Intent) { throw ActivityNotFoundException() }
             }
-            verify(CalendarBridge.open(missingContext, task, "测试目标").contains("未找到"), "Missing calendar has a user-facing fallback")
+            verify(CalendarBridge.open(missingContext, task, "测试目标").contains("No calendar app found"), "Missing calendar has a user-facing fallback")
         } catch (error: Throwable) { failure = error }
         instrumentation.finish(if (failure == null) -1 else 0, Bundle().apply {
             putString("stream", failure?.let { "FAIL after $checks checks: ${it.stackTraceToString()}" }

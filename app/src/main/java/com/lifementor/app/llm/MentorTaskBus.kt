@@ -21,7 +21,7 @@ object MentorTaskBus {
     @Synchronized
     fun contextFor(targetMentorId: String): String = acceptedByTarget[targetMentorId]
         .orEmpty()
-        .joinToString("\n") { "- 来自 ${it.sourceMentorId}：${it.taskTitle}（${it.rationale}）" }
+        .joinToString("\n") { "- From ${it.sourceMentorId}: ${it.taskTitle} (${it.rationale})" }
         .take(MAX_CONTEXT_LENGTH)
 
     @Synchronized

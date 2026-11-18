@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -20,12 +22,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.Role
+import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.StickerButton
+import com.lifementor.app.ui.theme.Cardboard
+import com.lifementor.app.ui.theme.InkBlack
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.theme.ScrapBlue
+import com.lifementor.app.ui.theme.ScrapRed
+import com.lifementor.app.ui.theme.ScrapRedDeep
+import com.lifementor.app.ui.theme.ScrapYellow
 import com.lifementor.app.ui.components.LabeledField
 
 @Composable
@@ -36,24 +51,19 @@ fun OnboardingScreen(onDone: () -> Unit, vm: OnboardingViewModel = viewModel()) 
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
-        Text(
-            "LifeQuest",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-        )
+        DisplayTitle("LifeQuest")
         Text(
             "Your Life, Your Game · ${vm.step + 1}/4",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = InkSoft,
         )
         Spacer(Modifier.height(20.dp))
 
         when (vm.step) {
             0 -> {
-                Text("你是谁？", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Who are you?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
-                Text("选个头像", style = MaterialTheme.typography.titleSmall)
+                Text("Pick an avatar", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(8.dp))
                 vm.avatars.chunked(6).forEach { row ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -69,10 +79,10 @@ fun OnboardingScreen(onDone: () -> Unit, vm: OnboardingViewModel = viewModel()) 
                     }
                     Spacer(Modifier.height(8.dp))
                 }
-                LabeledField("称呼（之后可改）", vm.nickname.value) { vm.nickname.value = it }
+                LabeledField("Nickname (can be changed later)", vm.nickname.value) { vm.nickname.value = it }
             }
             1 -> {
-                Text("你现在处于哪个人生阶段？", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Which stage of life are you in?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
                 Role.stages.forEach { s ->
                     Box3(selected = vm.stage.value == s, onClick = { vm.stage.value = s }) {
@@ -82,17 +92,17 @@ fun OnboardingScreen(onDone: () -> Unit, vm: OnboardingViewModel = viewModel()) 
                 }
             }
             2 -> {
-                Text("未来 12 个月，你希望活成什么样？", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("In the next 12 months, who do you want to become?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text("一句话愿景即可，它会出现在你每次复盘的开头。",
+                Text("One sentence is enough — it opens every weekly review.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
-                LabeledField("我的愿景", vm.vision.value, singleLine = false, minLines = 3) { vm.vision.value = it }
+                LabeledField("My vision", vm.vision.value, singleLine = false, minLines = 3) { vm.vision.value = it }
             }
             else -> {
-                Text("哪几件事最重要？", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("What matters most right now?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text("选 2~3 项，会自动生成你的主线目标。",
+                Text("Pick 2–3; they become your main-line goals automatically.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 Role.focuses.forEach { (title, _, emoji) ->
@@ -108,36 +118,47 @@ fun OnboardingScreen(onDone: () -> Unit, vm: OnboardingViewModel = viewModel()) 
         }
 
         Spacer(Modifier.height(24.dp))
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (vm.step > 0) {
-                OutlinedButton(onClick = { vm.step-- }) { Text("上一步") }
-                Spacer(Modifier.height(1.dp))
+                PaperChip("‹ Back", onClick = { vm.step-- })
+                Spacer(Modifier.width(10.dp))
             }
             Spacer(Modifier.weight(1f))
-            Button(onClick = {
-                if (vm.step < 3) vm.step++ else {
-                    vm.finish()
-                    onDone()
-                }
-            }) {
-                Text(if (vm.step < 3) "下一步" else "开始我的人生游戏 🎮")
-            }
+            StickerButton(
+                label = if (vm.step < 3) "Next" else "Start my life game 🎮",
+                onClick = {
+                    if (vm.step < 3) vm.step++ else {
+                        vm.finish()
+                        onDone()
+                    }
+                },
+                arrow = vm.step < 3,
+                baseColor = if (vm.step < 3) ScrapYellow else ScrapRedDeep,
+                shadowColor = if (vm.step < 3) ScrapBlue else ScrapYellow,
+                contentColor = if (vm.step < 3) InkBlack else PaperWhite,
+            )
         }
     }
 }
 
 @Composable
 private fun Box3(selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(10.dp)
     androidx.compose.foundation.layout.Box(
-        Modifier
-            .padding(end = 8.dp)
-            .clip(shape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) { content() }
+        Modifier.padding(end = 10.dp).rotate(if (selected) -0.6f else 0f),
+    ) {
+        androidx.compose.foundation.layout.Box(
+            Modifier
+                .matchParentSize()
+                .offset(3.dp, 3.dp)
+                .background(if (selected) ScrapRed.copy(alpha = 0.4f) else Cardboard, shape),
+        )
+        androidx.compose.foundation.layout.Box(
+            Modifier
+                .clip(shape)
+                .background(if (selected) ScrapYellow else PaperWhite)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) { content() }
+    }
 }

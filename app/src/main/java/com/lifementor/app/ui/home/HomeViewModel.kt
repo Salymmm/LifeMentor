@@ -40,7 +40,7 @@ class HomeViewModel : ViewModel() {
         val (into, need) = Leveling.progressOf(total)
         val domainXp = Leveling.domainTotals(xp)
         val maxV = (domainXp.values.maxOrNull() ?: 0).coerceAtLeast(60)
-        val doms = listOf("scholar" to "学术", "pathfinder" to "职业", "heart" to "情绪", "vital" to "健康", "fortune" to "财务")
+        val doms = listOf("scholar" to "Study", "pathfinder" to "Career", "heart" to "Emotion", "vital" to "Health", "fortune" to "Money")
         val ach = Leveling.achievements()
         return Snap(
             role = GameStore.loadRole(),
@@ -62,7 +62,7 @@ class HomeViewModel : ViewModel() {
             GameStore.completeTask(task.id)
             error.value = null
             refresh()
-        } catch (e: Exception) { error.value = "保存任务失败，请重试" }
+        } catch (e: Exception) { error.value = "Could not save the task. Please try again." }
     }
 
     fun setDueDate(task: TaskItem, date: Long?) {
@@ -70,6 +70,6 @@ class HomeViewModel : ViewModel() {
             GameStore.setTaskDueDate(task.id, date)
             error.value = null
             refresh()
-        } catch (e: Exception) { error.value = "保存任务日期失败，请重试" }
+        } catch (e: Exception) { error.value = "Could not save the task date. Please try again." }
     }
 }

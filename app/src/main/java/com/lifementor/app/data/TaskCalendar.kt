@@ -23,9 +23,9 @@ object TaskCalendar {
             .groupBy { Instant.ofEpochMilli(it.dueDate!!).atZone(ZoneOffset.UTC).toLocalDate() }
 
     fun eventDraft(task: TaskItem, goalTitle: String): CalendarEventDraft {
-        val dueDate = requireNotNull(task.dueDate) { "请先为任务安排日期" }
+        val dueDate = requireNotNull(task.dueDate) { "Schedule a date for this task first" }
         val date = Instant.ofEpochMilli(dueDate).atZone(ZoneOffset.UTC).toLocalDate()
-        return CalendarEventDraft(task.title, "LifeMentor 任务\n所属目标：$goalTitle",
+        return CalendarEventDraft(task.title, "LifeMentor task\nGoal: $goalTitle",
             TaskAgenda.dateMillis(date), TaskAgenda.dateMillis(date.plusDays(1)))
     }
 }

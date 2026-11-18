@@ -19,14 +19,14 @@ fun TaskDateDialog(dueDate: Long?, onDismiss: () -> Unit, onSave: (Long?) -> Uni
             TextButton(
                 onClick = { onSave(state.selectedDateMillis) },
                 enabled = state.selectedDateMillis != null,
-            ) { Text("保存") }
+            ) { Text("Save") }
         },
         dismissButton = {
             Row {
                 if (dueDate != null) {
-                    TextButton(onClick = { onSave(null) }) { Text("清除日期") }
+                    TextButton(onClick = { onSave(null) }) { Text("Clear date") }
                 }
-                TextButton(onClick = onDismiss) { Text("取消") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         },
     ) {

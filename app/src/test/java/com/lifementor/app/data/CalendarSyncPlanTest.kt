@@ -16,7 +16,7 @@ class CalendarSyncPlanTest {
             task.copy(id = 3, dueDate = null)))
         val items = CalendarSyncPlanner.desired(source)
         assertEquals(listOf(1L, 2L), items.map { it.taskId })
-        assertTrue(items.last().draft.description.contains("已完成"))
+        assertTrue(items.last().draft.description.contains("Task status: Completed"))
     }
 
     @Test fun initialSyncCreatesAndRepeatedSyncHasNoWrites() {

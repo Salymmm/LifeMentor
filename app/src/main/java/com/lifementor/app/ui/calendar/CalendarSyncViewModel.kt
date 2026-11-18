@@ -39,9 +39,9 @@ class CalendarSyncViewModel : ViewModel() {
             try {
                 targets = withContext(Dispatchers.IO) { provider.calendars() }
                 loaded = true
-                if (targets.isEmpty()) message = "没有可写入的日历，请先在手机日历中添加账户或创建日历，再重试。"
+                if (targets.isEmpty()) message = "No writable calendars found. Add an account or create a calendar in your calendar app, then try again."
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { message = "读取日历失败，请检查日历权限和日历账户后重试。" }
+            catch (_: Exception) { message = "Could not load calendars. Check calendar permissions and accounts, then try again." }
             finally { busy = false }
             if (loaded && syncAfterLoad && targets.isNotEmpty()) {
                 val selected = targets.find { it.id == selectedId }
@@ -60,7 +60,7 @@ class CalendarSyncViewModel : ViewModel() {
     private fun synchronize(id: Long, saveSelection: Boolean) {
         if (busy) return
         val source = try { GameStore.loadCalendarSyncSource() }
-        catch (_: Exception) { message = "任务数据读取失败，未执行同步。请先检查 App 中的任务是否正常。"; return }
+        catch (_: Exception) { message = "Could not read task data. Nothing was synced. Check your tasks in the app first."; return }
         val revision = GameStore.taskRevision.intValue
         choosing = false
         busy = true
@@ -75,11 +75,11 @@ class CalendarSyncViewModel : ViewModel() {
                     provider.synchronize(id, source)
                 }
                 selectedId = id
-                message = "同步完成：新增 ${plan.inserts.size}，更新 ${plan.updates.size}，移除 ${plan.deletes.size}，未变化 ${plan.unchanged}。" +
-                    if (revision != GameStore.taskRevision.intValue) "任务已发生变化，请再同步一次以更新最新内容。" else ""
+                message = "Sync complete: ${plan.inserts.size} added, ${plan.updates.size} updated, ${plan.deletes.size} removed, ${plan.unchanged} unchanged. " +
+                    if (revision != GameStore.taskRevision.intValue) "Tasks changed during sync. Sync again to include the latest changes." else ""
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: SecurityException) { message = "日历权限已关闭，请重新允许后再同步。" }
-            catch (_: Exception) { message = "同步未完成，请检查目标日历仍可写后重试。再次同步会核对已写入的日程。" }
+            catch (_: SecurityException) { message = "Calendar access was revoked. Allow access again before syncing." }
+            catch (_: Exception) { message = "Sync did not finish. Check that the selected calendar is still writable, then retry. Syncing again checks events already written." }
             finally { busy = false }
         }
     }

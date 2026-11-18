@@ -52,20 +52,20 @@ internal fun GoalEditorDialog(
     var domain by remember(goal?.id) { mutableStateOf(goal?.domain ?: "pathfinder") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (goal == null) "新增目标" else "编辑目标") },
+        title = { Text(if (goal == null) "New goal" else "Edit goal") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("目标名称") },
+                    label = { Text("Goal name") },
                     minLines = 2,
                     maxLines = 4,
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
-                Text("归属领域", style = MaterialTheme.typography.titleSmall)
+                Text("Domain", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(6.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Mentors.all.forEach { mentor ->
@@ -98,9 +98,9 @@ internal fun GoalEditorDialog(
             Button(
                 onClick = { onSave(title.trim(), domain) },
                 enabled = enabled && title.isNotBlank(),
-            ) { Text(if (goal == null) "创建" else "保存") }
+            ) { Text(if (goal == null) "Create" else "Save") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
@@ -117,14 +117,14 @@ internal fun TaskEditorDialog(
     var title by remember(task?.id) { mutableStateOf(task?.title ?: "") }
     var dueDate by remember(task?.id) { mutableStateOf(task?.dueDate) }
     var showDatePicker by remember { mutableStateOf(false) }
-    val label = if (isSubtask) "子任务" else "任务"
+    val label = if (isSubtask) "Subtask" else "Task"
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (task == null) "添加$label" else "编辑$label", Modifier.weight(1f))
+                Text(if (task == null) "Add $label" else "Edit $label", Modifier.weight(1f))
                 if (onDelete != null) IconButton(onClick = onDelete, enabled = enabled) {
-                    Icon(painterResource(R.drawable.ic_task_delete), contentDescription = "删除「${task?.title.orEmpty()}」",
+                    Icon(painterResource(R.drawable.ic_task_delete), contentDescription = "Delete ${task?.title.orEmpty()}",
                         tint = MaterialTheme.colorScheme.error)
                 }
             }
@@ -132,7 +132,7 @@ internal fun TaskEditorDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    "${if (isSubtask) "所属任务" else "所属目标"}：$parentTitle",
+                    "${if (isSubtask) "Parent task" else "Goal"}: $parentTitle",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -140,32 +140,32 @@ internal fun TaskEditorDialog(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("${label}名称") },
+                    label = { Text("${label} name") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
                     enabled = enabled,
                 )
                 Spacer(Modifier.height(10.dp))
-                Text("日期（可选）", style = MaterialTheme.typography.titleSmall)
+                Text("Date (optional)", style = MaterialTheme.typography.titleSmall)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        dueDate?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() } ?: "未安排",
+                        dueDate?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() } ?: "Unscheduled",
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     TextButton(onClick = { showDatePicker = true }, enabled = enabled) {
-                        Text(if (dueDate == null) "选择日期" else "更改日期")
+                        Text(if (dueDate == null) "Choose date" else "Change date")
                     }
                 }
             }
         },
         confirmButton = {
             Button(onClick = { onAdd(title.trim(), dueDate) }, enabled = enabled && title.isNotBlank()) {
-                Text(if (task == null) "添加" else "保存")
+                Text(if (task == null) "Add" else "Save")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
     if (showDatePicker && enabled) {
         TaskDateDialog(

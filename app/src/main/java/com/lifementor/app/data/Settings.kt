@@ -3,8 +3,8 @@ package com.lifementor.app.data
 import org.json.JSONObject
 
 /**
- * 大模型接口配置。采用 OpenAI 兼容的 /chat/completions 协议，
- * 因此同一个 App 可以直接对接智谱、SiliconFlow、DeepSeek、Ollama 等服务。
+ * LLM endpoint config. Uses the OpenAI-compatible /chat/completions protocol,
+ * so the same app can talk to GLM, SiliconFlow, DeepSeek, Ollama and friends.
  */
 data class Settings(
     val baseUrl: String = DEFAULT_BASE_URL,

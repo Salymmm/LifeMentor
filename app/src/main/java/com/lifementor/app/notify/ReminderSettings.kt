@@ -49,7 +49,7 @@ fun ReminderSettings() {
         if (granted) TaskReminders.setEnabled(context, true)
         enabled = TaskReminders.isEnabled(context)
         allowed = TaskReminders.canPost(context)
-        message = if (allowed) null else "通知权限未允许，可在系统通知设置中开启。"
+        message = if (allowed) null else "Notification permission was not granted. Enable it in system notification settings."
     }
     fun requestEnable() {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -58,7 +58,7 @@ fun ReminderSettings() {
             TaskReminders.setEnabled(context, true)
             enabled = true
             allowed = TaskReminders.canPost(context)
-            message = if (allowed) null else "系统通知已关闭，请在系统通知设置中允许提醒。"
+            message = if (allowed) null else "System notifications are off. Allow reminders in system notification settings."
         }
     }
     DisposableEffect(lifecycleOwner, context) {
@@ -77,7 +77,7 @@ fun ReminderSettings() {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("每日行动提醒", style = MaterialTheme.typography.titleSmall)
+                Text("Daily action reminders", style = MaterialTheme.typography.titleSmall)
                 Switch(checked = enabled, onCheckedChange = { checked ->
                     if (checked) requestEnable() else {
                         TaskReminders.setEnabled(context, false)
@@ -88,9 +88,9 @@ fun ReminderSettings() {
             }
             Text(
                 when {
-                    enabled && allowed -> "已开启 · 系统通知已允许"
-                    enabled -> "已暂停 · 系统通知未允许"
-                    else -> "未开启"
+                    enabled && allowed -> "On · System notifications allowed"
+                    enabled -> "Paused · System notifications not allowed"
+                    else -> "Off"
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -99,15 +99,15 @@ fun ReminderSettings() {
                 TimePickerDialog(context, { _, hour, minute ->
                     time = LocalTime.of(hour, minute)
                     TaskReminders.setReminderTime(context, time)
-                    message = "已保存提醒时间 " + time.format(DateTimeFormatter.ofPattern("HH:mm"))
+                    message = "Reminder time saved: " + time.format(DateTimeFormatter.ofPattern("HH:mm"))
                 }, time.hour, time.minute, DateFormat.is24HourFormat(context)).show()
-            }) { Text("每日提醒时间：$timeText · 更改") }
-            Text("每天本地时间 $timeText 左右，提醒今日或明日的一个未完成行动。系统省电可能延迟提醒。", style = MaterialTheme.typography.bodySmall)
-            if (!allowed) TextButton(onClick = { requestEnable() }) { Text("允许通知") }
+            }) { Text("Daily reminder time: $timeText · Change") }
+            Text("Around $timeText local time each day, get a reminder for one unfinished action due today or tomorrow. Battery saving may delay reminders.", style = MaterialTheme.typography.bodySmall)
+            if (!allowed) TextButton(onClick = { requestEnable() }) { Text("Allow notifications") }
             TextButton(onClick = {
                 context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
-            }) { Text("系统通知设置") }
-            OutlinedButton(onClick = { message = TaskReminders.showTest(context) }) { Text("发送测试提醒") }
+            }) { Text("System notification settings") }
+            OutlinedButton(onClick = { message = TaskReminders.showTest(context) }) { Text("Send test reminder") }
             message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }

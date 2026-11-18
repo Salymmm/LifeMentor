@@ -35,7 +35,7 @@ class SettingsViewModel : ViewModel() {
         private set
     private var testJob: Job? = null
 
-    // 人生角色编辑（创建向导的后续修改入口）
+    // Life-role editing (the post-onboarding edit entry)
     private val loadedRole = GameStore.loadRole()
     val roleNickname = mutableStateOf(loadedRole.nickname)
     val roleAvatar = mutableStateOf(loadedRole.avatar)
@@ -79,13 +79,13 @@ class SettingsViewModel : ViewModel() {
     fun applyPreset(url: String, m: String) {
         baseUrl.value = url
         model.value = m
-        testResult = "已填入预设，记得点「保存」"
+        testResult = "Preset applied — remember to tap Save"
     }
 
     fun test() {
         val s = current()
         if (s.apiKey.isBlank()) {
-            testResult = "❌ 请先填写 API Key"
+            testResult = "❌ Fill in the API key first"
             return
         }
         testing = true
@@ -103,7 +103,7 @@ class SettingsViewModel : ViewModel() {
                     ),
                 )
                 if (AiOperationRegistry.isCurrent(token)) {
-                    testResult = "✓ 连接成功，模型回复：${reply.take(30)}"
+                    testResult = "✓ Connected. Model replied: ${reply.take(30)}"
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled

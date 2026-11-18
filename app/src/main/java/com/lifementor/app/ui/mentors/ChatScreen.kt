@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -35,8 +36,23 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Leveling
 import com.lifementor.app.data.Mentors
-import com.lifementor.app.data.Msg
 import com.lifementor.app.ui.components.MarkdownText
+import com.lifementor.app.data.Msg
+import com.lifementor.app.ui.components.MentorAvatar
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.ScrapCard
+import com.lifementor.app.ui.components.StickerButton
+import com.lifementor.app.ui.theme.Charcoal
+import com.lifementor.app.ui.theme.DeepSlate
+import com.lifementor.app.ui.theme.InkBlack
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.theme.ScrapBlue
+import com.lifementor.app.ui.theme.ScrapPurple
+import com.lifementor.app.ui.theme.ScrapRed
+import com.lifementor.app.ui.theme.ScrapRedDeep
+import com.lifementor.app.ui.theme.ScrapYellow
+import com.lifementor.app.ui.theme.ScrapYellowDeep
 
 @Composable
 fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewModel()) {
@@ -57,46 +73,39 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
             Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("← 返回", fontSize = 16.sp) }
-            Box(
-                Modifier
-                    .widthIn(44.dp, 44.dp)
-                    .height(44.dp)
-                    .background(mentor.color.copy(alpha = 0.16f), RoundedCornerShape(50)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(mentor.emoji, fontSize = 22.sp)
-            }
+            PaperChip("‹ Back", onClick = onBack)
+            Spacer(Modifier.width(8.dp))
+            MentorAvatar(mentor, 44.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(mentor.name, fontWeight = FontWeight.Bold)
+                Text(mentor.en, style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "${mentor.domainLabel} ${domainXp} XP · ${mentor.en}",
+                    "${mentor.name} · ${mentor.domainLabel} ${domainXp} XP",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(
+            PaperChip(
+                label = if (vm.handoffBusy.value) "Analyzing…" else "Link a mentor",
                 onClick = { vm.requestHandoff() },
                 enabled = canProposeHandoff && !vm.sending.value &&
                     !vm.handoffBusy.value && vm.handoffSuggestion.value == null,
-            ) {
-                Text(if (vm.handoffBusy.value) "分析中…" else "联动建议")
-            }
-            TextButton(onClick = { vm.clearHistory() }) { Text("清空") }
+            )
+            Spacer(Modifier.width(6.dp))
+            PaperChip("Clear", onClick = { vm.clearHistory() })
         }
 
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
         ) {
-            items(msgs) { m -> Bubble(m, mentor.color) }
+            itemsIndexed(msgs) { i, m -> Bubble(m, i) }
             if (vm.sending.value) {
                 item {
                     Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.width(20.dp).height(20.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text("${mentor.name.split(" ").lastOrNull()}正在输入…",
+                        Text("${mentor.name} is typing…",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -111,27 +120,30 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
             ) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
-                Text("正在分析是否适合交给另一位导师", style = MaterialTheme.typography.bodySmall)
+                Text("Checking whether another mentor should take this next", style = MaterialTheme.typography.bodySmall)
             }
         }
 
         vm.handoffSuggestion.value?.let { suggestion ->
             val targetName = Mentors.byId(suggestion.targetMentorId)?.name ?: suggestion.targetMentorId
-            Card(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            ScrapCard(
+                paperColor = ScrapPurple,
+                shadowColor = Charcoal.copy(alpha = 0.25f),
+                rotation = -0.3f,
+                fillWidth = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text("建议联动至 $targetName", fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text("任务：${suggestion.taskTitle}")
-                    if (suggestion.rationale.isNotBlank()) {
-                        Text("原因：${suggestion.rationale}", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Button(onClick = { vm.acceptHandoff() }) { Text("确认转交") }
-                        TextButton(onClick = { vm.dismissHandoff() }) { Text("取消") }
-                    }
+                Text("Suggested handoff to $targetName", style = MaterialTheme.typography.titleMedium, color = InkBlack)
+                Spacer(Modifier.height(4.dp))
+                Text("Task: ${suggestion.taskTitle}", style = MaterialTheme.typography.bodyMedium, color = InkBlack)
+                if (suggestion.rationale.isNotBlank()) {
+                    Text("Why: ${suggestion.rationale}", style = MaterialTheme.typography.bodySmall, color = InkBlack)
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StickerButton("Confirm handoff", onClick = { vm.acceptHandoff() })
+                    Spacer(Modifier.width(10.dp))
+                    PaperChip("Cancel", onClick = { vm.dismissHandoff() })
                 }
             }
         }
@@ -155,30 +167,33 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
         }
 
         if (vm.crisis.value) {
-            Card(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+            ScrapCard(
+                paperColor = ScrapRed,
+                shadowColor = Charcoal.copy(alpha = 0.25f),
+                rotation = 0.3f,
+                fillWidth = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(
-                    "🫂 如果你此刻非常难受：全国心理援助热线 12356（24 小时）。" +
-                        "也可以联系信任的人或学校心理中心。树洞可以陪你梳理，但不能替代专业帮助。",
+                    "🫂 If you are really struggling right now: call 12356 (24h mental-health hotline in mainland China) or local emergency services. " +
+                        "You can also reach someone you trust or your campus counseling center. Heart can listen, but cannot replace professional help.",
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(10.dp),
+                    color = PaperWhite,
                 )
             }
         }
 
-        TextButton(
+        PaperChip(
+            label = if (vm.simulationMode.value) "🔮 Simulation on · tap to turn off" else "🔮 Simulation mode",
             onClick = { vm.toggleSimulationMode() },
             enabled = !vm.sending.value && !vm.handoffBusy.value,
-            modifier = Modifier.padding(start = 8.dp, top = 2.dp),
-        ) {
-            Text(if (vm.simulationMode.value) "🔮 推演模式已开启 · 点击关闭" else "🔮 推演模式")
-        }
+            baseColor = if (vm.simulationMode.value) ScrapYellow else PaperWhite,
+            modifier = Modifier.padding(start = 12.dp, top = 2.dp),
+        )
 
         if (vm.simulationMode.value) {
             Text(
-                "本次选择会结合你的画像进行三路径比较；关闭后恢复普通导师对话。",
+                "This compares three paths using your profile; turn it off to return to normal mentor chat.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
@@ -194,50 +209,68 @@ fun ChatScreen(mentorId: String, onBack: () -> Unit, vm: ChatViewModel = viewMod
                 onValueChange = { vm.draft.value = it },
                 placeholder = {
                     Text(
-                        if (vm.simulationMode.value) "描述要比较的选择…"
-                        else "和${mentor.name.split("·").lastOrNull()?.trim() ?: "导师"}说说…",
+                        if (vm.simulationMode.value) "Describe the choices to compare…"
+                        else "Talk to ${mentor.name}…",
                     )
                 },
                 modifier = Modifier.weight(1f),
                 maxLines = 4,
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = PaperWhite,
+                    unfocusedContainerColor = PaperWhite,
+                    focusedBorderColor = InkBlack,
+                    unfocusedBorderColor = ScrapYellowDeep,
+                    cursorColor = ScrapRed,
+                    focusedTextColor = InkBlack,
+                    unfocusedTextColor = InkBlack,
+                ),
             )
             Spacer(Modifier.width(8.dp))
             if (vm.sending.value) {
-                Button(onClick = { vm.cancelSending() }) { Text("停止") }
+                StickerButton(
+                    "Stop",
+                    onClick = { vm.cancelSending() },
+                    baseColor = ScrapRedDeep,
+                    shadowColor = ScrapYellowDeep,
+                    contentColor = PaperWhite,
+                )
             } else {
-                Button(
+                StickerButton(
+                    if (vm.simulationMode.value) "Simulate" else "Send",
                     onClick = { vm.send() },
                     enabled = !vm.handoffBusy.value,
-                ) {
-                    Text(if (vm.simulationMode.value) "推演" else "发送")
-                }
+                    arrow = true,
+                )
             }
         }
     }
 }
 
+private val NotePalette = listOf(
+    PaperWhite to InkSoft,
+    ScrapYellow to InkBlack,
+    ScrapPurple to InkBlack,
+)
+
 @Composable
-private fun Bubble(m: Msg, accent: androidx.compose.ui.graphics.Color) {
+private fun Bubble(m: Msg, index: Int) {
     val mine = m.role == "user"
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    val (paper, ink) = if (mine) DeepSlate to PaperWhite
+    else NotePalette[index % NotePalette.size]
+    val rot = if (index % 2 == 0) -0.4f else 0.5f
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         if (mine) Spacer(Modifier.weight(1f))
-        Card(
-            Modifier.widthIn(max = 320.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (mine) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
-            shape = RoundedCornerShape(
-                topStart = 16.dp, topEnd = 16.dp,
-                bottomStart = if (mine) 16.dp else 4.dp,
-                bottomEnd = if (mine) 4.dp else 16.dp,
-            ),
+        ScrapCard(
+            paperColor = paper,
+            shadowColor = Charcoal.copy(alpha = 0.22f),
+            rotation = rot,
+            modifier = Modifier.widthIn(max = 320.dp),
         ) {
             if (mine) Text(
                 m.content,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (mine) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(12.dp),
+                color = ink,
             )
             else MarkdownText(m.content, scrollable = false)
         }

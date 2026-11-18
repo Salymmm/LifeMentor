@@ -59,8 +59,8 @@ object TaskReminders {
 
     fun initialize(context: Context) {
         manager(context).createNotificationChannel(
-            NotificationChannel(CHANNEL, "每日行动提醒", NotificationManager.IMPORTANCE_DEFAULT)
-                .apply { description = "在本地提醒今日或明日的一个未完成行动" },
+            NotificationChannel(CHANNEL, "Daily action reminders", NotificationManager.IMPORTANCE_DEFAULT)
+                .apply { description = "Local reminders for one unfinished action due today or tomorrow" },
         )
         reconcile(context)
     }
@@ -111,12 +111,12 @@ object TaskReminders {
     }
 
     fun showTest(context: Context): String {
-        if (!canPost(context)) return "请先允许系统通知权限，再发送测试提醒。"
-        if (!isEnabled(context)) return "请先开启每日行动提醒。"
+        if (!canPost(context)) return "Allow system notifications before sending a test reminder."
+        if (!isEnabled(context)) return "Turn on daily action reminders first."
         val activeGoals = activeGoalIds()
         val task = GameStore.loadTasks().filter { !it.done && it.level == 3 && it.goalId in activeGoals }.minByOrNull { it.id }
-            ?: return "还没有可提醒的行动，请先在进行中的目标下添加一个未完成行动。"
-        return if (show(context, task)) "已发送测试提醒，可在通知栏完成或延后行动。" else "通知未发送，请检查系统通知权限。"
+            ?: return "No actions to remind you about. Add an unfinished action to an active goal first."
+        return if (show(context, task)) "Test reminder sent. Complete or snooze the action from the notification." else "Notification not sent. Check system notification permissions."
     }
 
     internal fun show(context: Context, task: TaskItem): Boolean {
@@ -125,14 +125,14 @@ object TaskReminders {
             .setData(Uri.parse("lifementor://task/${task.id}/open"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val open = PendingIntent.getActivity(context, 0, contentIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val dateText = task.dueDateText()?.let { "计划日期：$it" } ?: "用一个小行动，推进你的目标。"
+        val dateText = task.dueDateText()?.let { "Scheduled date: $it" } ?: "Take one small action toward your goal."
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(task.title).setContentText(dateText)
             .setStyle(NotificationCompat.BigTextStyle().bigText("${task.title}\n$dateText"))
             .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true)
-            .addAction(0, "完成", actionIntent(context, task, COMPLETE))
-            .addAction(0, "延后 1 小时", actionIntent(context, task, SNOOZE))
+            .addAction(0, "Complete", actionIntent(context, task, COMPLETE))
+            .addAction(0, "Snooze 1 hour", actionIntent(context, task, SNOOZE))
             .build()
         return try {
             manager(context).notify(taskTag(task.id), 0, notification)

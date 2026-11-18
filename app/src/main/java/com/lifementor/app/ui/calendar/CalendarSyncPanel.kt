@@ -66,13 +66,13 @@ fun CalendarSyncPanel(vm: CalendarSyncViewModel = viewModel()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("手机日历", style = MaterialTheme.typography.titleMedium)
+                    Text("Device calendar", style = MaterialTheme.typography.titleMedium)
                     Text(vm.targets.find { it.id == vm.selectedId }?.let { "${it.name} · ${it.account}" }
-                        ?: "首次使用需授权并选择目标日历", style = MaterialTheme.typography.bodySmall)
+                        ?: "Allow access and choose a calendar to get started", style = MaterialTheme.typography.bodySmall)
                 }
-                if (allowed) TextButton(onClick = vm::chooseTarget, enabled = !vm.busy) { Text("更换") }
+                if (allowed) TextButton(onClick = vm::chooseTarget, enabled = !vm.busy) { Text("Change") }
             }
-            Text("同步所有有日期的任务，含已完成、不限月份。以 App 为准，更新并清理本功能创建的日程。",
+            Text("Sync all dated tasks, including completed tasks, across all months. App data updates and removes events created by this sync feature.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = {
                 if (CalendarSyncProvider.hasPermissions(context)) vm.beginSync()
@@ -80,13 +80,13 @@ fun CalendarSyncPanel(vm: CalendarSyncViewModel = viewModel()) {
             }, enabled = !vm.busy, modifier = Modifier.fillMaxWidth()) {
                 if (vm.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary)
-                Text(if (vm.busy) "  正在处理…" else "一键同步全部")
+                Text(if (vm.busy) "  Working…" else "Sync all tasks")
             }
             if (denied && !allowed) {
-                Text("需要允许日历读写权限后才能批量同步。", style = MaterialTheme.typography.bodySmall)
+                Text("Allow calendar read and write access to sync tasks in bulk.", style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = {
                     context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
-                }) { Text("打开系统权限设置") }
+                }) { Text("Open system permission settings") }
             }
             vm.message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
@@ -97,10 +97,10 @@ fun CalendarSyncPanel(vm: CalendarSyncViewModel = viewModel()) {
         }
         AlertDialog(
             onDismissRequest = vm::dismissPicker,
-            title = { Text("选择同步日历") },
+            title = { Text("Choose a calendar to sync") },
             text = {
                 Column {
-                    Text("仅同步到选中的日历。更换目标会保留旧日历内容；以前通过 ↗ 手动添加的日程不会被接管。",
+                    Text("Only the selected calendar is synced. Switching calendars keeps events in the old calendar. Events added manually with ↗ remain separate.",
                         style = MaterialTheme.typography.bodySmall)
                     Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
                         vm.targets.forEach { target ->
@@ -117,8 +117,8 @@ fun CalendarSyncPanel(vm: CalendarSyncViewModel = viewModel()) {
                 }
             },
             confirmButton = { TextButton(onClick = { selected?.let(vm::selectAndSync) },
-                enabled = vm.targets.any { it.id == selected } && !vm.busy) { Text("同步到此日历") } },
-            dismissButton = { TextButton(onClick = vm::dismissPicker) { Text("取消") } },
+                enabled = vm.targets.any { it.id == selected } && !vm.busy) { Text("Sync to this calendar") } },
+            dismissButton = { TextButton(onClick = vm::dismissPicker) { Text("Cancel") } },
         )
     }
 }

@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -38,6 +40,16 @@ import com.lifementor.app.data.AppStorage
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Leveling
 import com.lifementor.app.data.Mentors
+import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.PaperChip
+import com.lifementor.app.ui.components.LabeledField
+import com.lifementor.app.ui.components.ScrapCard
+import com.lifementor.app.ui.components.StickerButton
+import com.lifementor.app.ui.theme.Charcoal
+import com.lifementor.app.ui.theme.InkBlack
+import com.lifementor.app.ui.theme.InkSoft
+import com.lifementor.app.ui.theme.PaperWhite
+import com.lifementor.app.ui.components.MentorAvatar
 import org.json.JSONObject
 
 @Composable
@@ -60,51 +72,58 @@ fun MentorsTab() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("我的导师团", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        DisplayTitle("My Guides")
         Text(
-            "他们共享你授权的人生档案：画像、活跃目标和本周进度。各管一摊，性格各异。",
+            "Five perspectives for every step. They share the archive you authorize: profile, active goals and weekly progress.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = InkSoft,
         )
         Spacer(Modifier.height(14.dp))
 
-        list.forEach { m ->
-            Card(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp)
-                    .clickable { openId = m.id },
+        list.forEachIndexed { mi, m ->
+            ScrapCard(
+                paperColor = PaperWhite,
+                shadowColor = Charcoal.copy(alpha = 0.18f),
+                rotation = if (mi % 2 == 0) -0.3f else 0.35f,
+                fillWidth = true,
+                modifier = Modifier
+                    .clickable { openId = m.id }
+                    .padding(bottom = 14.dp),
             ) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(46.dp)
-                            .background(m.color.copy(alpha = 0.16f), CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(m.emoji, fontSize = 24.sp)
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MentorAvatar(m, 54.dp, fallbackEmojiSize = 26.sp)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(m.name, fontWeight = FontWeight.Bold)
-                        Text(m.tagline, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            "${m.domainLabel}已积累 ${xpTotals[m.id] ?: 0} XP",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = m.color,
-                        )
+                        Text(m.name, style = MaterialTheme.typography.titleMedium, color = InkBlack)
+                        Text(m.tagline, style = MaterialTheme.typography.bodySmall, color = InkSoft)
+                        Spacer(Modifier.height(4.dp))
+                        Box {
+                            Box(
+                                Modifier
+                                    .matchParentSize()
+                                    .offset(2.dp, 2.dp)
+                                    .background(m.color.copy(alpha = 0.45f), RoundedCornerShape(4.dp)),
+                            )
+                            Text(
+                                "${m.domainLabel} · ${xpTotals[m.id] ?: 0} XP earned",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = InkBlack,
+                                modifier = Modifier
+                                    .background(m.color, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
                     }
-                    Text("聊聊 →", style = MaterialTheme.typography.bodySmall)
+                    PaperChip("Chat ›", onClick = { openId = m.id })
                 }
             }
         }
 
         if (Mentors.custom() == null) {
-            OutlinedButton(
+            StickerButton(
+                "+ Create a custom sixth mentor (startup / art / travel…)",
                 onClick = { showCustom = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("＋ 创建第六位自定义导师（创业 / 艺术 / 旅行…）") }
+            )
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -129,35 +148,31 @@ private fun CustomMentorDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit
     var persona by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("自定义导师") },
+        title = { Text("Custom mentor") },
         text = {
             Column {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名字，如：创业导师 · 老 K") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = emoji, onValueChange = { emoji = it }, label = { Text("一个表情当头像，如 🚀") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = domain, onValueChange = { domain = it }, label = { Text("领域名，如：创业成长") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = persona, onValueChange = { persona = it },
-                    label = { Text("TA 是谁、怎么说话、擅长什么（30 字以上）") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
+                LabeledField("Name, e.g. Founder Coach · K", name) { name = it }
+                LabeledField("One emoji as the avatar, e.g. 🚀", emoji) { emoji = it }
+                LabeledField("Domain label, e.g. Startup Growth", domain) { domain = it }
+                LabeledField("Who they are, how they talk, what they are good at (30+ chars)", persona,
+                    singleLine = false, minLines = 3) { persona = it }
             }
         },
         confirmButton = {
-            Button(onClick = {
-                if (name.isNotBlank() && persona.length >= 20) {
-                    onCreate(
-                        JSONObject()
-                            .put("name", name.trim()).put("emoji", emoji.trim())
-                            .put("domain", domain.trim().ifBlank { "自定义领域" })
-                            .put("tagline", "由你定义的导师").put("persona", persona.trim()).toString()
-                    )
-                }
-            }) { Text("创建") }
+            StickerButton(
+                "Create",
+                onClick = {
+                    if (name.isNotBlank() && persona.length >= 20) {
+                        onCreate(
+                            JSONObject()
+                                .put("name", name.trim()).put("emoji", emoji.trim())
+                                .put("domain", domain.trim().ifBlank { "Custom Guide" })
+                                .put("tagline", "A mentor you defined").put("persona", persona.trim()).toString()
+                        )
+                    }
+                },
+            )
         },
-        dismissButton = { TextButton(onDismiss) { Text("取消") } },
+        dismissButton = { PaperChip("Cancel", onClick = onDismiss) },
     )
 }

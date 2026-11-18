@@ -69,7 +69,7 @@ class GoalsViewModel : ViewModel() {
             GameStore.updateGoal(id, title, domain)
             error.value = null
             refresh()
-        } catch (e: Exception) { error.value = e.message ?: "保存目标失败，请重试" }
+        } catch (e: Exception) { error.value = e.message ?: "Could not save the goal. Please try again." }
     }
 
     fun addTask(goalId: Long, title: String, parentId: Long?, dueDate: Long?) {
@@ -84,7 +84,7 @@ class GoalsViewModel : ViewModel() {
                 expandedTasks[ancestorId] = true
                 ancestorId = tasks.find { it.id == ancestorId }?.parentId
             }
-        } catch (e: Exception) { error.value = e.message ?: "添加任务失败，请重试" }
+        } catch (e: Exception) { error.value = e.message ?: "Could not add the task. Please try again." }
     }
 
     fun toggle(id: Long) {
@@ -98,14 +98,14 @@ class GoalsViewModel : ViewModel() {
         error.value = null
         refresh()
         true
-    } catch (e: Exception) { error.value = e.message ?: "保存任务失败，请重试"; false }
+    } catch (e: Exception) { error.value = e.message ?: "Could not save the task. Please try again."; false }
 
     fun deleteTask(id: Long): Boolean = try {
         GameStore.deleteTaskTree(id).forEach { expandedTasks.remove(it) }
         error.value = null
         refresh()
         true
-    } catch (e: Exception) { error.value = e.message ?: "删除任务失败，请重试"; false }
+    } catch (e: Exception) { error.value = e.message ?: "Could not delete the task. Please try again."; false }
 
     fun setDueDate(taskId: Long, dueDate: Long?) {
         try {
@@ -113,7 +113,7 @@ class GoalsViewModel : ViewModel() {
             error.value = null
             refresh()
         } catch (e: Exception) {
-            error.value = "保存任务日期失败，请重试"
+            error.value = "Could not save the task date. Please try again."
         }
     }
 
@@ -140,7 +140,7 @@ class GoalsViewModel : ViewModel() {
         val goal = goals.find { it.id == goalId } ?: return
         val settings = AppStorage.loadSettings()
         if (settings.apiKey.isBlank()) {
-            error.value = "请先在「设置」页填入 API Key"
+            error.value = "Add your API key on the Settings page first"
             return
         }
         busy.value = true
@@ -164,7 +164,7 @@ class GoalsViewModel : ViewModel() {
                 val parsed: JSONObject = try {
                     JsonExtract.obj(LlmClient.chat(settings, msgs))
                 } catch (e: Exception) {
-                    msgs.add(ChatMessage("user", Prompts.retryDecomposeMessage(e.message ?: "格式错误")))
+                    msgs.add(ChatMessage("user", Prompts.retryDecomposeMessage(e.message ?: "Malformed output")))
                     JsonExtract.obj(LlmClient.chat(settings, msgs))
                 }
                 val newTasks = parseTree(goal.id, parsed)
@@ -178,7 +178,7 @@ class GoalsViewModel : ViewModel() {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
-                if (AiOperationRegistry.isCurrent(token)) error.value = e.message ?: "拆解失败，请重试"
+                if (AiOperationRegistry.isCurrent(token)) error.value = e.message ?: "Decomposition failed, please retry"
             } finally {
                 if (decompositionJob === coroutineContext.job) {
                     decompositionJob = null
@@ -195,7 +195,7 @@ class GoalsViewModel : ViewModel() {
         val out = ArrayList<TaskItem>()
         val base = System.currentTimeMillis() * 10
         var seq = 0L
-        val ms = root.optJSONArray("milestones") ?: throw LlmException("返回中没有 milestones 字段")
+        val ms = root.optJSONArray("milestones") ?: throw LlmException("Response has no milestones field")
         for (i in 0 until ms.length()) {
             val m = ms.getJSONObject(i)
             seq++
@@ -216,7 +216,7 @@ class GoalsViewModel : ViewModel() {
                 }
             }
         }
-        if (out.isEmpty()) throw LlmException("拆解结果为空，请重试")
+        if (out.isEmpty()) throw LlmException("Decomposition result is empty, please retry")
         return out
     }
 }

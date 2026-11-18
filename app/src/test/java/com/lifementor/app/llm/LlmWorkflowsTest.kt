@@ -99,7 +99,7 @@ class LlmWorkflowsTest {
         }.exceptionOrNull()
 
         assertTrue(failure is LlmException)
-        assertTrue(failure?.message.orEmpty().contains("描述要比较的选择"))
+        assertTrue(failure?.message.orEmpty().contains("Describe the choices you want to compare"))
     }
 
     @Test

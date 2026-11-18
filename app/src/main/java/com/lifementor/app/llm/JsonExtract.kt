@@ -13,7 +13,7 @@ object JsonExtract {
             s = s.substringBefore("```")
         }
         val start = s.indexOf('{')
-        if (start < 0) throw LlmException("模型没有按要求返回 JSON，请重试")
+        if (start < 0) throw LlmException("The model did not return JSON as required. Please retry.")
         var depth = 0
         var inStr = false
         var esc = false
@@ -30,57 +30,57 @@ object JsonExtract {
                 }
             }
         }
-        throw LlmException("模型返回的 JSON 不完整，请重试")
+        throw LlmException("The model returned incomplete JSON. Please retry.")
     }
 
     /** Extracts and validates the strict three-level goal-decomposition contract. */
     fun obj(raw: String): JSONObject = extractObject(raw).also(::validateDecomposition)
 
     private fun validateDecomposition(root: JSONObject) {
-        requireKeys(root, setOf("milestones"), "拆解结果")
+        requireKeys(root, setOf("milestones"), "decomposition result")
         val milestones = root.optJSONArray("milestones")
-            ?: throw LlmException("拆解结果缺少 milestones 数组，请重试")
+            ?: throw LlmException("Decomposition result is missing the milestones array. Please retry.")
         if (milestones.length() !in 2..4) {
-            throw LlmException("拆解结果的里程碑数量应为 2～4 个，请重试")
+            throw LlmException("The decomposition should contain 2–4 milestones. Please retry.")
         }
 
         for (milestoneIndex in 0 until milestones.length()) {
             val milestone = milestones.optJSONObject(milestoneIndex)
-                ?: throw LlmException("第 ${milestoneIndex + 1} 个里程碑格式不正确，请重试")
-            requireKeys(milestone, setOf("title", "weeks"), "里程碑")
-            val milestoneTitle = requireText(milestone, "title", "里程碑标题")
+                ?: throw LlmException("Milestone ${milestoneIndex + 1} is malformed. Please retry.")
+            requireKeys(milestone, setOf("title", "weeks"), "milestone")
+            val milestoneTitle = requireText(milestone, "title", "milestone title")
             if (!MILESTONE_TITLE.matches(milestoneTitle)) {
-                throw LlmException("里程碑标题必须以 Q1～Q4、竖线 | 和非空标题开头，请重试")
+                throw LlmException("Milestone titles must start with Q1–Q4, a pipe |, and a non-empty title. Please retry.")
             }
             val weeks = milestone.optJSONArray("weeks")
-                ?: throw LlmException("第 ${milestoneIndex + 1} 个里程碑缺少 weeks 数组，请重试")
+                ?: throw LlmException("Milestone ${milestoneIndex + 1} is missing the weeks array. Please retry.")
             if (weeks.length() !in 2..4) {
-                throw LlmException("每个里程碑应包含 2～4 个周任务，请重试")
+                throw LlmException("Each milestone should contain 2–4 weekly tasks. Please retry.")
             }
 
             for (weekIndex in 0 until weeks.length()) {
                 val week = weeks.optJSONObject(weekIndex)
-                    ?: throw LlmException("周任务格式不正确，请重试")
-                requireKeys(week, setOf("title", "days"), "周任务")
-                val weekTitle = requireText(week, "title", "周任务标题")
+                    ?: throw LlmException("A weekly task is malformed. Please retry.")
+                requireKeys(week, setOf("title", "days"), "weekly task")
+                val weekTitle = requireText(week, "title", "weekly task title")
                 if (!WEEK_TITLE.matches(weekTitle)) {
-                    throw LlmException("周任务标题必须以“Week N |”开头，请重试")
+                    throw LlmException("Weekly task titles must start with \"Week N |\". Please retry.")
                 }
                 val days = week.optJSONArray("days")
-                    ?: throw LlmException("周任务缺少 days 数组，请重试")
+                    ?: throw LlmException("A weekly task is missing the days array. Please retry.")
                 if (days.length() !in 1..3) {
-                    throw LlmException("每个周任务应包含 1～3 条每日行动，请重试")
+                    throw LlmException("Each weekly task should contain 1–3 daily actions. Please retry.")
                 }
                 for (dayIndex in 0 until days.length()) {
                     val action = days.opt(dayIndex) as? String
                     if (action.isNullOrBlank()) {
-                        throw LlmException("每日行动必须是非空文本，请重试")
+                        throw LlmException("Daily actions must be non-empty text. Please retry.")
                     }
                     if (!isEnglishText(action)) {
-                        throw LlmException("每日行动必须使用英文，仅允许英文字母、数字和标准标点，请重试")
+                        throw LlmException("Daily actions must be English only: letters, digits and standard punctuation. Please retry.")
                     }
                     if (englishWordCount(action) > MAX_DAILY_ACTION_WORDS) {
-                        throw LlmException("每日行动不能超过 $MAX_DAILY_ACTION_WORDS 个英文单词，请重试")
+                        throw LlmException("Daily actions must stay within $MAX_DAILY_ACTION_WORDS English words. Please retry.")
                     }
                 }
             }
@@ -89,15 +89,15 @@ object JsonExtract {
 
     private fun requireKeys(value: JSONObject, expected: Set<String>, label: String) {
         val actual = value.keys().asSequence().toSet()
-        if (actual != expected) throw LlmException("${label}字段不符合拆解 JSON 结构，请重试")
+        if (actual != expected) throw LlmException("The ${label} field does not match the decomposition JSON schema. Please retry.")
     }
 
     private fun requireText(value: JSONObject, key: String, label: String): String {
         val text = value.opt(key) as? String
-        if (text.isNullOrBlank()) throw LlmException("${label}不能为空，请重试")
+        if (text.isNullOrBlank()) throw LlmException("${label} must not be empty. Please retry.")
         val trimmed = text.trim()
         if (!isEnglishText(trimmed)) {
-            throw LlmException("${label}必须使用英文，仅允许英文字母、数字和标准标点，请重试")
+            throw LlmException("${label} must be English only: letters, digits and standard punctuation. Please retry.")
         }
         return trimmed
     }

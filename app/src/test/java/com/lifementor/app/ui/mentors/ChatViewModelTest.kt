@@ -186,9 +186,9 @@ class ChatViewModelTest {
 
             assertEquals(suggestion, actions.acceptedHandoff)
             assertNull(vm.handoffSuggestion.value)
-            assertTrue(vm.handoffStatus.value.orEmpty().contains("学术导师"))
-            assertTrue(vm.handoffStatus.value.orEmpty().contains("本次应用运行期间"))
-            assertTrue(vm.handoffStatus.value.orEmpty().contains("退出重启"))
+            assertTrue(vm.handoffStatus.value.orEmpty().contains("Scholar"))
+            assertTrue(vm.handoffStatus.value.orEmpty().contains("during this app session"))
+            assertTrue(vm.handoffStatus.value.orEmpty().contains("restart"))
         } finally {
             Dispatchers.resetMain()
         }

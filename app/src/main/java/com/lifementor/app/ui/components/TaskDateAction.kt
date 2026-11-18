@@ -13,7 +13,7 @@ import com.lifementor.app.R
 fun TaskDateAction(title: String, dueDate: String?, enabled: Boolean = true, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp)) {
         Icon(painterResource(R.drawable.ic_task_calendar),
-            contentDescription = if (dueDate == null) "为「$title」安排日期" else "更改「$title」日期：$dueDate",
+            contentDescription = if (dueDate == null) "Schedule a date for $title" else "Change date for $title: $dueDate",
             modifier = Modifier.size(20.dp))
     }
 }

@@ -21,8 +21,8 @@ object CalendarBridge {
 
     fun open(context: Context, task: TaskItem, goalTitle: String): String = try {
         context.startActivity(insertIntent(task, goalTitle))
-        "请在手机日历中确认保存。返回本应用不会自动同步日历里的修改。"
+        "Confirm and save in your calendar app. Returning here does not automatically sync changes made in the calendar."
     } catch (_: ActivityNotFoundException) {
-        "未找到可添加事件的日历应用，请安装或启用手机日历后重试。"
+        "No calendar app found that can add events. Install or enable a calendar app, then try again."
     }
 }
