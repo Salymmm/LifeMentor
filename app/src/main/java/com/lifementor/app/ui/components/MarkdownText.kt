@@ -132,12 +132,12 @@ private fun inline(raw: String): AnnotatedString = buildAnnotatedString {
 }
 
 @Composable
-fun MarkdownText(source: String, modifier: Modifier = Modifier) {
+fun MarkdownText(source: String, modifier: Modifier = Modifier, scrollable: Boolean = true) {
     val blocks = remember(source) { parseMarkdown(source) }
     Column(
         modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         for (b in blocks) {
@@ -210,7 +210,7 @@ fun MarkdownText(source: String, modifier: Modifier = Modifier) {
                 Block.Rule -> HorizontalDivider(Modifier.padding(vertical = 12.dp))
             }
         }
-        Box(Modifier.padding(bottom = 40.dp))
+        if (scrollable) Box(Modifier.padding(bottom = 40.dp))
     }
 }
 

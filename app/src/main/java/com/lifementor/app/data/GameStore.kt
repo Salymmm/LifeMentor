@@ -3,9 +3,12 @@ package com.lifementor.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import com.lifementor.app.notify.TaskReminders
+import androidx.compose.runtime.mutableIntStateOf
 
 /** Local store for goals / tasks / XP / chats / role (JSON files; painless migration to Room later) */
 object GameStore {
+    val taskRevision = mutableIntStateOf(0)
     private val ctx get() = AppStorage.appCtx
     private val goalsFile get() = File(ctx.filesDir, "goals.json")
     private val tasksFile get() = File(ctx.filesDir, "tasks.json")
@@ -33,6 +36,7 @@ object GameStore {
         val a = JSONArray()
         list.forEach { a.put(it.toJson()) }
         goalsFile.writeText(a.toString())
+        taskRevision.intValue++
     }
 
     fun addGoal(title: String, domain: String): Goal {
@@ -43,8 +47,17 @@ object GameStore {
         return g
     }
 
+    fun updateGoal(id: Long, title: String, domain: String) {
+        saveGoals(loadGoals().map { if (it.id == id) it.edited(title, domain) else it })
+    }
+
     fun setGoalDone(id: Long) {
         saveGoals(loadGoals().map { if (it.id == id) it.copy(status = "done") else it })
+        loadTasks().filter { it.goalId == id }.forEach { TaskReminders.cancelTask(ctx, it.id) }
+    }
+
+    fun reopenGoal(id: Long) {
+        saveGoals(loadGoals().map { if (it.id == id) it.copy(status = "active") else it })
     }
 
     fun markDecomposed(id: Long) {
@@ -59,10 +72,54 @@ object GameStore {
         mutableListOf()
     }
 
+    /** 批量同步包含删除操作，读取错误必须抛出，不能按空任务列表处理。调用方在主线程取快照。 */
+    fun loadCalendarSyncSource(): CalendarSyncSource {
+        val goals = JSONArray(if (goalsFile.exists()) goalsFile.readText() else "[]")
+        val tasks = JSONArray(if (tasksFile.exists()) tasksFile.readText() else "[]")
+        return CalendarSyncSource(
+            (0 until goals.length()).map { Goal.from(goals.getJSONObject(it)) },
+            (0 until tasks.length()).map { TaskItem.from(tasks.getJSONObject(it)) },
+        )
+    }
+
     fun saveTasks(list: List<TaskItem>) {
         val a = JSONArray()
         list.forEach { a.put(it.toJson()) }
         tasksFile.writeText(a.toString())
+        taskRevision.intValue++
+    }
+
+    fun setTaskDueDate(taskId: Long, dueDate: Long?) {
+        saveTasks(loadTasks().map { if (it.id == taskId) it.copy(dueDate = dueDate) else it })
+        TaskReminders.cancelTask(ctx, taskId)
+    }
+
+    fun updateTask(taskId: Long, title: String, dueDate: Long?) {
+        saveTasks(loadTasks().map { if (it.id == taskId) it.edited(title, dueDate) else it })
+        TaskReminders.cancelTask(ctx, taskId)
+    }
+
+    fun deleteTaskTree(taskId: Long): Set<Long> {
+        val tasks = loadTasks()
+        val removed = taskBranchIds(tasks, taskId)
+        saveTasks(tasks.filter { it.id !in removed })
+        removed.forEach { TaskReminders.cancelTask(ctx, it) }
+        return removed
+    }
+
+    /** 通知和今日任务使用只完成操作；重复点击不会撤销或重复奖励。 */
+    fun completeTask(taskId: Long): Int {
+        val tasks = loadTasks()
+        val index = tasks.indexOfFirst { it.id == taskId }
+        if (index < 0 || tasks[index].done) return 0
+        val task = tasks[index]
+        val goal = loadGoals().find { it.id == task.goalId && it.status == "active" } ?: return 0
+        val awarded = if (task.xpGiven) 0 else Leveling.xpForLevel(task.level)
+        tasks[index] = task.completed(System.currentTimeMillis()).copy(xpGiven = true)
+        if (awarded > 0) addXP(awarded, task.title, goal.domain)
+        saveTasks(tasks)
+        TaskReminders.cancelTask(ctx, taskId)
+        return awarded
     }
 
     /** Toggle a task; on first completion grant tier-based XP (reward only, never clawed back) */
@@ -84,17 +141,30 @@ object GameStore {
             addXP(awarded, t.title, goal?.domain ?: "pathfinder")
         }
         saveTasks(tasks)
+        TaskReminders.cancelTask(ctx, taskId)
         return awarded
     }
 
     fun addQuickAction(goalId: Long, title: String) {
+        val anchor = loadTasks().lastOrNull { it.goalId == goalId && it.level == 2 }?.id
+        addTask(goalId, title, anchor)
+    }
+
+    fun addTask(goalId: Long, title: String, parentId: Long? = null, dueDate: Long? = null): TaskItem {
+        require(loadGoals().any { it.id == goalId && it.status == "active" }) { "Add tasks under an active goal" }
         val tasks = loadTasks()
-        val anchor = tasks.lastOrNull { it.goalId == goalId && it.level == 2 }?.id
-        tasks.add(TaskItem(System.currentTimeMillis(), goalId, anchor, 3, title.trim()))
+        val parent = parentId?.let { id ->
+            tasks.find { it.id == id } ?: throw IllegalArgumentException("The parent task no longer exists. Please choose another.")
+        }
+        val id = maxOf(System.currentTimeMillis(), (tasks.maxOfOrNull { it.id } ?: 0L) + 1)
+        val task = TaskItem.manual(id, goalId, title, parent, dueDate)
+        tasks.add(task)
         saveTasks(tasks)
+        return task
     }
 
     fun deleteGoalTree(goalId: Long) {
+        loadTasks().filter { it.goalId == goalId }.forEach { TaskReminders.cancelTask(ctx, it.id) }
         saveTasks(loadTasks().filter { it.goalId != goalId })
         saveGoals(loadGoals().filter { it.id != goalId })
     }
@@ -131,8 +201,10 @@ object GameStore {
     }
 
     fun clearAll() {
+        TaskReminders.reset(ctx)
         listOf(goalsFile, tasksFile, xpFile, roleFile).forEach { it.delete() }
         chatsDir.listFiles()?.forEach { it.delete() }
+        taskRevision.intValue++
     }
 
     /** Onboarding finished: persist the role and auto-create goals from the chosen focuses */

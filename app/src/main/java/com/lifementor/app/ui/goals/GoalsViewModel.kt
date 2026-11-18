@@ -36,6 +36,7 @@ class GoalsViewModel : ViewModel() {
     val error = mutableStateOf<String?>(null)
     val xpToast = mutableStateOf<String?>(null)
     val expanded = mutableStateMapOf<Long, Boolean>()
+    val expandedTasks = mutableStateMapOf<Long, Boolean>()
     private var decompositionJob: Job? = null
 
     init {
@@ -48,6 +49,7 @@ class GoalsViewModel : ViewModel() {
                 error.value = null
                 xpToast.value = null
                 expanded.clear()
+                expandedTasks.clear()
             }
         }
     }
@@ -62,17 +64,57 @@ class GoalsViewModel : ViewModel() {
         refresh()
     }
 
+    fun updateGoal(id: Long, title: String, domain: String) {
+        try {
+            GameStore.updateGoal(id, title, domain)
+            error.value = null
+            refresh()
+        } catch (e: Exception) { error.value = e.message ?: "Could not save the goal. Please try again." }
+    }
+
+    fun addTask(goalId: Long, title: String, parentId: Long?, dueDate: Long?) {
+        try {
+            val task = GameStore.addTask(goalId, title, parentId, dueDate)
+            expanded[goalId] = true
+            expandedTasks[task.id] = true
+            error.value = null
+            refresh()
+            var ancestorId = task.parentId
+            while (ancestorId != null) {
+                expandedTasks[ancestorId] = true
+                ancestorId = tasks.find { it.id == ancestorId }?.parentId
+            }
+        } catch (e: Exception) { error.value = e.message ?: "Could not add the task. Please try again." }
+    }
+
     fun toggle(id: Long) {
         val got = GameStore.toggleTask(id)
         if (got > 0) xpToast.value = "⚡ +$got XP"
         refresh()
     }
 
-    fun quickAction(goalId: Long, title: String) {
-        if (title.isBlank()) return
-        GameStore.addQuickAction(goalId, title)
-        expanded[goalId] = true
+    fun updateTask(id: Long, title: String, dueDate: Long?): Boolean = try {
+        GameStore.updateTask(id, title, dueDate)
+        error.value = null
         refresh()
+        true
+    } catch (e: Exception) { error.value = e.message ?: "Could not save the task. Please try again."; false }
+
+    fun deleteTask(id: Long): Boolean = try {
+        GameStore.deleteTaskTree(id).forEach { expandedTasks.remove(it) }
+        error.value = null
+        refresh()
+        true
+    } catch (e: Exception) { error.value = e.message ?: "Could not delete the task. Please try again."; false }
+
+    fun setDueDate(taskId: Long, dueDate: Long?) {
+        try {
+            GameStore.setTaskDueDate(taskId, dueDate)
+            error.value = null
+            refresh()
+        } catch (e: Exception) {
+            error.value = "Could not save the task date. Please try again."
+        }
     }
 
     fun completeGoal(id: Long) {
@@ -80,9 +122,16 @@ class GoalsViewModel : ViewModel() {
         refresh()
     }
 
+    fun reopenGoal(id: Long) {
+        GameStore.reopenGoal(id)
+        refresh()
+    }
+
     fun deleteGoal(id: Long) {
+        val taskIds = tasks.filter { it.goalId == id }.map { it.id }
         GameStore.deleteGoalTree(id)
         expanded.remove(id)
+        taskIds.forEach { expandedTasks.remove(it) }
         refresh()
     }
 

@@ -2,6 +2,8 @@ package com.lifementor.app.data
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
+import java.time.ZoneOffset
 
 /** A goal (a main-line objective under the yearly / long-term vision) */
 data class Goal(
@@ -12,6 +14,11 @@ data class Goal(
     val createdAt: Long = System.currentTimeMillis(),
     val decomposed: Boolean = false,
 ) {
+    fun edited(title: String, domain: String): Goal {
+        require(title.isNotBlank()) { "Goal name cannot be empty" }
+        return copy(title = title.trim(), domain = domain)
+    }
+
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("title", title).put("domain", domain)
         .put("status", status).put("createdAt", createdAt).put("decomposed", decomposed)
@@ -24,7 +31,7 @@ data class Goal(
     }
 }
 
-/** Task-tree node: level 1 = quarterly milestone, 2 = weekly task, 3 = daily action */
+/** parentId defines nesting; level retains reward tiers. Manual tasks use action tier 3. */
 data class TaskItem(
     val id: Long,
     val goalId: Long,
@@ -34,20 +41,40 @@ data class TaskItem(
     val done: Boolean = false,
     val doneAt: Long? = null,
     val xpGiven: Boolean = false,
+    val dueDate: Long? = null, // 日历日期，以 UTC 零点毫秒值保存；不是提醒触发时刻
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("goalId", goalId)
         .put("parentId", if (parentId == null) JSONObject.NULL else parentId)
         .put("level", level).put("title", title)
         .put("done", done).put("doneAt", doneAt ?: JSONObject.NULL).put("xpGiven", xpGiven)
+        .put("dueDate", dueDate ?: JSONObject.NULL)
+
+    fun dueDateText(): String? = dueDate?.let {
+        Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
+    }
+
+    fun completed(at: Long): TaskItem = if (done) this else copy(done = true, doneAt = at)
+
+    fun edited(title: String, dueDate: Long?): TaskItem {
+        require(title.isNotBlank()) { "Task name cannot be empty" }
+        return copy(title = title.trim(), dueDate = dueDate)
+    }
 
     companion object {
+        fun manual(id: Long, goalId: Long, title: String, parent: TaskItem?, dueDate: Long? = null): TaskItem {
+            require(title.isNotBlank()) { "Task name cannot be empty" }
+            require(parent == null || parent.goalId == goalId) { "Choose a parent task in the same goal" }
+            return TaskItem(id, goalId, parent?.id, 3, title.trim(), dueDate = dueDate)
+        }
+
         fun from(o: JSONObject): TaskItem = TaskItem(
             o.getLong("id"), o.getLong("goalId"),
             if (o.isNull("parentId")) null else o.getLong("parentId"),
             o.getInt("level"), o.optString("title"),
             o.optBoolean("done"), if (o.isNull("doneAt")) null else o.getLong("doneAt"),
             o.optBoolean("xpGiven"),
+            if (o.isNull("dueDate")) null else o.getLong("dueDate"),
         )
     }
 }

@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Leveling
 import com.lifementor.app.data.Mentors
+import com.lifementor.app.ui.components.MarkdownText
 import com.lifementor.app.data.Msg
 import com.lifementor.app.ui.components.MentorAvatar
 import com.lifementor.app.ui.components.PaperChip
@@ -266,11 +267,12 @@ private fun Bubble(m: Msg, index: Int) {
             rotation = rot,
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
-            Text(
+            if (mine) Text(
                 m.content,
                 style = MaterialTheme.typography.bodyMedium,
                 color = ink,
             )
+            else MarkdownText(m.content, scrollable = false)
         }
         if (!mine) Spacer(Modifier.weight(1f))
     }
