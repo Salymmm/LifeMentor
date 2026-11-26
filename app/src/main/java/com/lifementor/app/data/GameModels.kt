@@ -109,11 +109,20 @@ data class Msg(
     val time: Long,
     val role: String, // user | assistant
     val content: String,
+    val complete: Boolean = true,
+    val fromTaskQuery: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject().put("time", time).put("role", role).put("content", content)
+        .apply {
+            if (!complete) put("complete", false)
+            if (fromTaskQuery) put("fromTaskQuery", true)
+        }
 
     companion object {
-        fun from(o: JSONObject): Msg = Msg(o.getLong("time"), o.optString("role"), o.optString("content"))
+        fun from(o: JSONObject): Msg = Msg(
+            o.getLong("time"), o.optString("role"), o.optString("content"),
+            o.optBoolean("complete", true), o.optBoolean("fromTaskQuery"),
+        )
     }
 }
 

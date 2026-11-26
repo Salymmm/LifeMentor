@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +45,8 @@ import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import com.lifementor.app.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +65,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.time.ZonedDateTime
 import com.lifementor.app.ui.components.DisplayTitle
+import com.lifementor.app.ui.components.ExpandableCard
 import com.lifementor.app.ui.components.PaperChip
 import com.lifementor.app.ui.components.ScrapCard
 import com.lifementor.app.ui.components.StickerButton
@@ -73,7 +78,6 @@ import com.lifementor.app.ui.theme.ScrapRed
 import com.lifementor.app.ui.components.RadarChart
 import com.lifementor.app.ui.components.TaskDateDialog
 import com.lifementor.app.ui.components.TaskDateAction
-import com.lifementor.app.ui.components.ExpandableCard
 
 private enum class AgendaPage(val title: String, val emptyText: String) {
     RESCHEDULE("Reschedule", "No actions need rescheduling"),
@@ -120,6 +124,7 @@ fun HomeScreen(
         }
     }
     val s = vm.snap.value
+    var growthExpanded by rememberSaveable { mutableStateOf(false) }
     var dateTaskId by remember { mutableStateOf<Long?>(null) }
     var agendaPage by rememberSaveable { mutableStateOf<AgendaPage?>(null) }
     val homeScrollState = rememberScrollState()
@@ -145,7 +150,9 @@ fun HomeScreen(
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 DisplayTitle("Journey", modifier = Modifier.weight(1f))
-                PaperChip("Calendar", onClick = goCalendar)
+                IconButton(onClick = goCalendar) {
+                    Icon(painterResource(R.drawable.ic_task_calendar), contentDescription = "Open calendar")
+                }
             }
             // Character card
             ScrapCard(
@@ -200,22 +207,27 @@ fun HomeScreen(
                         )
                     }
                 }
-            }
-
-            // 五维成长
-            ExpandableCard("Five-dimension growth") {
-                RadarChart(
-                    labels = s.radar.map { it.first },
-                    values = s.radar.map { it.second },
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth().height(220.dp),
-                )
-                Row(Modifier.fillMaxWidth()) {
-                    s.radar.forEachIndexed { i, p ->
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(p.first, style = MaterialTheme.typography.labelSmall)
-                            Text("${s.radarXp[i]}", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary)
+                TextButton(
+                    onClick = { growthExpanded = !growthExpanded },
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text(if (growthExpanded) "Hide growth ▴" else "Show growth ▾")
+                }
+                if (growthExpanded) {
+                    Text("Five-dimension growth", style = MaterialTheme.typography.titleSmall)
+                    RadarChart(
+                        labels = s.radar.map { it.first },
+                        values = s.radar.map { it.second },
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                    )
+                    Row(Modifier.fillMaxWidth()) {
+                        s.radar.forEachIndexed { i, p ->
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(p.first, style = MaterialTheme.typography.labelSmall)
+                                Text("${s.radarXp[i]}", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }
