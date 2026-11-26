@@ -3,6 +3,8 @@ package com.lifementor.app.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import com.lifementor.app.notify.TaskReminders
 import androidx.compose.runtime.mutableIntStateOf
 
@@ -12,6 +14,7 @@ object GameStore {
     private val ctx get() = AppStorage.appCtx
     private val goalsFile get() = File(ctx.filesDir, "goals.json")
     private val tasksFile get() = File(ctx.filesDir, "tasks.json")
+    private val decompositionCommitFile get() = File(ctx.filesDir, "decomposition_commit.json")
     private val xpFile get() = File(ctx.filesDir, "xp.json")
     private val roleFile get() = File(ctx.filesDir, "role.json")
     private val chatsDir get() = File(ctx.filesDir, "chats").apply { mkdirs() }
@@ -60,10 +63,6 @@ object GameStore {
         saveGoals(loadGoals().map { if (it.id == id) it.copy(status = "active") else it })
     }
 
-    fun markDecomposed(id: Long) {
-        saveGoals(loadGoals().map { if (it.id == id) it.copy(decomposed = true) else it })
-    }
-
     // ---------- Tasks ----------
     fun loadTasks(): MutableList<TaskItem> = try {
         val a = JSONArray(if (tasksFile.exists()) tasksFile.readText() else "[]")
@@ -87,6 +86,75 @@ object GameStore {
         list.forEach { a.put(it.toJson()) }
         tasksFile.writeText(a.toString())
         taskRevision.intValue++
+    }
+
+    @Synchronized
+    internal fun confirmDecomposition(draft: DecompositionDraft) {
+        recoverDecomposition()
+        val (goals, tasks) = loadCalendarSyncSource()
+        val updatedTasks = draft.appendTo(goals.find { it.id == draft.goalId }, tasks)
+        val tasksChanged = updatedTasks != tasks
+        val taskFile = tasksFile
+        val previousTasks = if (tasksChanged && taskFile.exists()) taskFile.readText() else null
+        val commitFile = decompositionCommitFile
+        var tasksWritten = false
+        try {
+            if (tasksChanged) {
+                val marker = JSONObject().put("goalId", draft.goalId).put("taskId", updatedTasks[tasks.size].id)
+                replaceFile(commitFile, marker.toString())
+                val taskJson = JSONArray()
+                updatedTasks.forEach { taskJson.put(it.toJson()) }
+                replaceFile(taskFile, taskJson.toString())
+                tasksWritten = true
+            }
+            writeDecomposedGoal(goals, draft.goalId)
+        } catch (error: Exception) {
+            try {
+                if (tasksWritten) {
+                    if (previousTasks == null) Files.deleteIfExists(taskFile.toPath())
+                    else replaceFile(taskFile, previousTasks)
+                }
+                commitFile.delete()
+            } catch (rollbackError: Exception) {
+                error.addSuppressed(rollbackError)
+            }
+            throw error
+        }
+        commitFile.delete()
+        taskRevision.intValue++
+    }
+
+    @Synchronized
+    internal fun recoverDecomposition() {
+        val marker = decompositionCommitFile
+        if (!marker.exists()) return
+        val pending = JSONObject(marker.readText())
+        val goalId = pending.getLong("goalId")
+        val taskId = pending.getLong("taskId")
+        val (goals, tasks) = loadCalendarSyncSource()
+        if (goals.any { it.id == goalId && !it.decomposed } && tasks.any { it.id == taskId && it.goalId == goalId }) {
+            writeDecomposedGoal(goals, goalId)
+            taskRevision.intValue++
+        }
+        marker.delete()
+    }
+
+    private fun writeDecomposedGoal(goals: List<Goal>, goalId: Long) {
+        val json = JSONArray()
+        goals.forEach { goal ->
+            json.put(if (goal.id == goalId) goal.copy(decomposed = true).toJson() else goal.toJson())
+        }
+        replaceFile(goalsFile, json.toString())
+    }
+
+    private fun replaceFile(file: File, content: String) {
+        val staged = File.createTempFile(file.name, ".tmp", file.parentFile)
+        try {
+            staged.writeText(content)
+            Files.move(staged.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            staged.delete()
+        }
     }
 
     fun setTaskDueDate(taskId: Long, dueDate: Long?) {
@@ -202,7 +270,7 @@ object GameStore {
 
     fun clearAll() {
         TaskReminders.reset(ctx)
-        listOf(goalsFile, tasksFile, xpFile, roleFile).forEach { it.delete() }
+        listOf(goalsFile, tasksFile, xpFile, roleFile, decompositionCommitFile).forEach { it.delete() }
         chatsDir.listFiles()?.forEach { it.delete() }
         taskRevision.intValue++
     }

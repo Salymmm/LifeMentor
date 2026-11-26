@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.content.SharedPreferences
 import android.os.Bundle
 import com.lifementor.app.data.AppStorage
+import com.lifementor.app.data.DecompositionDraft
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.TaskItem
@@ -15,6 +16,7 @@ import com.lifementor.app.ui.calendar.CalendarViewModel
 import java.time.LocalDate
 import java.time.LocalTime
 import java.io.File
+import org.json.JSONObject
 
 /** Uses isolated files and negative fixture IDs; never resets user reminders or user data. */
 internal object GoalInteractionSmoke {
@@ -104,6 +106,50 @@ internal object GoalInteractionSmoke {
                 val rejectsCorruptSource = runCatching { GameStore.loadCalendarSyncSource() }.isFailure
                 taskFile.writeText(savedTasks)
                 verify(rejectsCorruptSource, "Corrupt source aborts sync instead of deleting all events")
+
+                val draftGoal = GameStore.addGoal("Try AI decomposition", "pathfinder")
+                val manual = GameStore.addTask(draftGoal.id, "Keep this task")
+                val milestone = TaskItem(-200, draftGoal.id, null, 1, "Draft milestone")
+                val week = TaskItem(-201, draftGoal.id, milestone.id, 2, "Draft week")
+                val day = TaskItem(-202, draftGoal.id, week.id, 3, "Draft day")
+                val draft = DecompositionDraft(draftGoal.id, draftGoal.title, listOf(milestone, week, day))
+                val dueDate = TaskAgenda.dateMillis(calendarDay)
+                val edited = draft.withoutBranch(week.id).editTask(milestone.id, "Scheduled milestone", dueDate)
+                val beforeConfirmation = GameStore.loadCalendarSyncSource()
+                verify(beforeConfirmation.goals.single { it.id == draftGoal.id } == draftGoal,
+                    "Editing a decomposition draft leaves the goal eligible")
+                verify(beforeConfirmation.tasks.filter { it.goalId == draftGoal.id } == listOf(manual),
+                    "Editing a decomposition draft leaves saved tasks unchanged")
+                GameStore.confirmDecomposition(edited)
+                val confirmed = GameStore.loadCalendarSyncSource()
+                verify(confirmed.goals.single { it.id == draftGoal.id }.decomposed,
+                    "Confirmation marks the goal decomposed")
+                verify(confirmed.tasks.filter { it.goalId == draftGoal.id } ==
+                    listOf(manual, milestone.copy(title = "Scheduled milestone", dueDate = dueDate)),
+                    "Confirmation appends only the retained edited branch and preserves the manual task")
+                verify(CalendarViewModel().snapshot.byDate[calendarDay].orEmpty().any { it.id == milestone.id },
+                    "The confirmed date appears on the calendar")
+                verify(runCatching { GameStore.confirmDecomposition(edited) }.isFailure &&
+                    GameStore.loadCalendarSyncSource() == confirmed,
+                    "A second confirmation leaves storage unchanged")
+
+                val interruptedGoal = Goal(-300, "Interrupted confirmation", "scholar")
+                val interruptedTask = TaskItem(-301, interruptedGoal.id, null, 1, "Already committed task")
+                GameStore.saveGoals(confirmed.goals + interruptedGoal)
+                GameStore.saveTasks(confirmed.tasks + interruptedTask)
+                val pending = File(directory, "decomposition_commit.json")
+                pending.writeText(JSONObject().put("goalId", interruptedGoal.id).put("taskId", interruptedTask.id).toString())
+                GameStore.recoverDecomposition()
+                verify(GameStore.loadGoals().single { it.id == interruptedGoal.id }.decomposed,
+                    "Restart finishes a confirmation after its tasks have been stored")
+                verify(!pending.exists() && GameStore.loadTasks().count { it.id == interruptedTask.id } == 1,
+                    "Recovery removes the marker without duplicating tasks")
+
+                pending.writeText(JSONObject().put("goalId", interruptedGoal.id).put("taskId", -302).toString())
+                GameStore.saveGoals(GameStore.loadGoals().map { if (it.id == interruptedGoal.id) interruptedGoal else it })
+                GameStore.recoverDecomposition()
+                verify(!pending.exists() && GameStore.loadGoals().single { it.id == interruptedGoal.id } == interruptedGoal,
+                    "An interruption before storing tasks leaves the goal untouched")
             } catch (error: Throwable) {
                 failure = error
             } finally {

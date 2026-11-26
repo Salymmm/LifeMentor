@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifementor.app.data.AppStorage
+import com.lifementor.app.data.DecompositionDraft
 import com.lifementor.app.data.GameStore
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.Mentors
@@ -33,6 +34,10 @@ class GoalsViewModel : ViewModel() {
         private set
     val busy = mutableStateOf(false)
     val decomposingId = mutableStateOf<Long?>(null)
+    internal var decompositionDraft by mutableStateOf<DecompositionDraft?>(null)
+        private set
+    internal var decompositionError by mutableStateOf<String?>(null)
+        private set
     val error = mutableStateOf<String?>(null)
     val xpToast = mutableStateOf<String?>(null)
     val expanded = mutableStateMapOf<Long, Boolean>()
@@ -46,6 +51,7 @@ class GoalsViewModel : ViewModel() {
                 tasks = mutableListOf()
                 busy.value = false
                 decomposingId.value = null
+                cancelDecomposition()
                 error.value = null
                 xpToast.value = null
                 expanded.clear()
@@ -136,8 +142,8 @@ class GoalsViewModel : ViewModel() {
     }
 
     fun decompose(goalId: Long) {
-        if (busy.value) return
-        val goal = goals.find { it.id == goalId } ?: return
+        if (busy.value || decompositionDraft != null) return
+        val goal = goals.find { it.id == goalId && it.status == "active" && !it.decomposed } ?: return
         val settings = AppStorage.loadSettings()
         if (settings.apiKey.isBlank()) {
             error.value = "Add your API key on the Settings page first"
@@ -169,12 +175,7 @@ class GoalsViewModel : ViewModel() {
                 }
                 val newTasks = parseTree(goal.id, parsed)
                 if (!AiOperationRegistry.isCurrent(token)) return@createJob
-                val all = GameStore.loadTasks()
-                all.addAll(newTasks)
-                GameStore.saveTasks(all)
-                GameStore.markDecomposed(goal.id)
-                expanded[goal.id] = true
-                refresh()
+                decompositionDraft = DecompositionDraft(goal.id, goal.title, newTasks)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
@@ -189,6 +190,37 @@ class GoalsViewModel : ViewModel() {
         }
         decompositionJob = operation.job
         operation.start()
+    }
+
+    internal fun editDraftTask(id: Long, title: String, dueDate: Long?) {
+        decompositionDraft = decompositionDraft?.editTask(id, title, dueDate)
+        decompositionError = null
+    }
+
+    internal fun removeDraftBranch(id: Long) {
+        decompositionDraft = decompositionDraft?.withoutBranch(id)
+        decompositionError = null
+    }
+
+    internal fun cancelDecomposition() {
+        decompositionDraft = null
+        decompositionError = null
+    }
+
+    internal fun confirmDecomposition() {
+        val draft = decompositionDraft ?: return
+        try {
+            GameStore.confirmDecomposition(draft)
+        } catch (error: IllegalArgumentException) {
+            decompositionError = error.message
+            return
+        } catch (_: Exception) {
+            decompositionError = "Could not save the draft. Please try again."
+            return
+        }
+        cancelDecomposition()
+        expanded[draft.goalId] = true
+        refresh()
     }
 
     private fun parseTree(goalId: Long, root: JSONObject): List<TaskItem> {

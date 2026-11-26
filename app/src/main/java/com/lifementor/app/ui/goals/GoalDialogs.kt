@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -34,12 +37,92 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import com.lifementor.app.R
+import com.lifementor.app.data.DecompositionDraft
 import com.lifementor.app.data.TaskItem
 import com.lifementor.app.data.Goal
 import com.lifementor.app.data.Mentors
 import com.lifementor.app.ui.components.TaskDateDialog
 import java.time.Instant
 import java.time.ZoneOffset
+
+@Composable
+internal fun DecompositionPreviewDialog(
+    draft: DecompositionDraft,
+    error: String?,
+    onEdit: (Long, String, Long?) -> Unit,
+    onRemove: (Long) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+) {
+    var editingId by remember { mutableStateOf<Long?>(null) }
+    var schedulingId by remember { mutableStateOf<Long?>(null) }
+    var expandedIds by remember { mutableStateOf(draft.tasks.map { it.id }.toSet()) }
+    val listState = rememberLazyListState()
+    val editing = draft.tasks.find { it.id == editingId }
+    val scheduling = draft.tasks.find { it.id == schedulingId }
+    if (scheduling != null) {
+        TaskDateDialog(
+            dueDate = scheduling.dueDate,
+            onDismiss = { schedulingId = null },
+            onSave = { date ->
+                onEdit(scheduling.id, scheduling.title, date)
+                schedulingId = null
+            },
+        )
+        return
+    }
+    if (editing != null) {
+        TaskEditorDialog(
+            parentTitle = draft.tasks.find { it.id == editing.parentId }?.title ?: draft.goalTitle,
+            isSubtask = editing.parentId != null,
+            enabled = true,
+            task = editing,
+            onDismiss = { editingId = null },
+            onAdd = { title, date ->
+                onEdit(editing.id, title, date)
+                editingId = null
+            },
+        )
+        return
+    }
+
+    val rows = remember(draft.tasks, expandedIds) { visibleTaskRows(draft.tasks, expandedIds) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Review AI decomposition") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(draft.goalTitle, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    if (rows.isEmpty()) "No tasks remain." else "Tap a task to expand or collapse. Use its menu to edit, set a date, or delete.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (error != null) {
+                    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                LazyColumn(state = listState) {
+                    items(rows, key = { it.task.id }) { (task, depth) ->
+                        TaskTreeItem(
+                            task = task,
+                            depth = depth,
+                            childCount = draft.tasks.count { it.parentId == task.id },
+                            expanded = task.id in expandedIds,
+                            canMutate = true,
+                            onToggleExpanded = {
+                                expandedIds = if (task.id in expandedIds) expandedIds - task.id else expandedIds + task.id
+                            },
+                            onEdit = { editingId = task.id },
+                            onSetDate = { schedulingId = task.id },
+                            onDelete = { onRemove(task.id) },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onSave, enabled = rows.isNotEmpty()) { Text("Save tasks") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
 
 @Composable
 internal fun GoalEditorDialog(

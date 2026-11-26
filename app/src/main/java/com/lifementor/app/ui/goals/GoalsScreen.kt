@@ -17,10 +17,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.lifementor.app.R
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,7 +52,6 @@ import com.lifementor.app.data.Mentors
 import com.lifementor.app.data.TaskItem
 import com.lifementor.app.data.taskBranchIds
 import com.lifementor.app.ui.components.TaskDateDialog
-import com.lifementor.app.ui.components.TaskDateAction
 import com.lifementor.app.ui.components.DisplayTitle
 import com.lifementor.app.ui.components.MentorAvatar
 import com.lifementor.app.ui.components.PaperChip
@@ -83,11 +86,13 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
                 Text("Life Goals", style = MaterialTheme.typography.labelSmall, color = InkSoft)
             }
             Spacer(Modifier.weight(1f))
-            PaperChip("Calendar", onClick = onOpenCalendar)
+            IconButton(onClick = onOpenCalendar) {
+                Icon(painterResource(R.drawable.ic_task_calendar), contentDescription = "Open calendar")
+            }
             Spacer(Modifier.width(8.dp))
             StickerButton("+ New goal", onClick = { showAdd = true })
         }
-        Text(listOfNotNull(vm.xpToast.value, "Tap a task title to edit or delete").joinToString(" · "), style = MaterialTheme.typography.bodySmall,
+        Text(listOfNotNull(vm.xpToast.value, "Tap tasks to expand · ⋯ for task actions").joinToString(" · "), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
         vm.error.value?.let {
             Text(
@@ -134,6 +139,7 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
                         goal, vm,
                         onEdit = { editGoalId = goal.id },
                         onEditTask = { editTaskId = it },
+                        onDeleteTask = { deleteTaskId = it },
                         onAddTask = { parentId -> newTask = NewTask(goal.id, parentId) },
                         onDelete = { deleteGoalId = goal.id },
                     )
@@ -148,6 +154,7 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
                         goal, vm,
                         onEdit = { editGoalId = goal.id },
                         onEditTask = { editTaskId = it },
+                        onDeleteTask = { deleteTaskId = it },
                         onAddTask = { parentId -> newTask = NewTask(goal.id, parentId) },
                         onDelete = { deleteGoalId = goal.id },
                     )
@@ -156,6 +163,16 @@ fun GoalsScreen(onOpenCalendar: () -> Unit, vm: GoalsViewModel = viewModel()) {
         }
     }
 
+    vm.decompositionDraft?.let { draft ->
+        DecompositionPreviewDialog(
+            draft = draft,
+            error = vm.decompositionError,
+            onEdit = vm::editDraftTask,
+            onRemove = vm::removeDraftBranch,
+            onDismiss = vm::cancelDecomposition,
+            onSave = vm::confirmDecomposition,
+        )
+    }
     if (showAdd) {
         GoalEditorDialog(
             onDismiss = { showAdd = false },
@@ -235,6 +252,7 @@ private fun GoalCard(
     vm: GoalsViewModel,
     onEdit: () -> Unit,
     onEditTask: (Long) -> Unit,
+    onDeleteTask: (Long) -> Unit,
     onAddTask: (Long?) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -256,6 +274,14 @@ private fun GoalCard(
         Tape(Modifier.align(Alignment.End))
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = !active,
+                    onCheckedChange = { checked ->
+                        if (checked) vm.completeGoal(goal.id) else vm.reopenGoal(goal.id)
+                    },
+                    enabled = !isDecomposing,
+                    modifier = Modifier.semantics { contentDescription = "Complete goal: ${goal.title}" },
+                )
                 if (mentor != null) {
                     MentorAvatar(mentor, 40.dp, fallbackEmojiSize = 20.sp)
                 } else {
@@ -269,7 +295,7 @@ private fun GoalCard(
                     }
                 }
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).clickable { vm.expanded[goal.id] = !open }) {
                     Text(
                         goal.title,
                         style = MaterialTheme.typography.titleMedium,
@@ -290,15 +316,11 @@ private fun GoalCard(
                         )
                     }
                 }
-                if (sub.isNotEmpty()) {
-                    PaperChip(if (open) "Collapse" else "Expand",
-                        onClick = { vm.expanded[goal.id] = !open })
-                }
                 Box {
                     IconButton(
                         onClick = { showManagement = true },
                         modifier = Modifier.semantics { contentDescription = "Manage goal: ${goal.title}" },
-                    ) { Text("⋮", fontSize = 24.sp) }
+                    ) { Text("⋯", fontSize = 24.sp) }
                     DropdownMenu(expanded = showManagement, onDismissRequest = { showManagement = false }) {
                         DropdownMenuItem(
                             text = { Text("Edit goal") },
@@ -330,14 +352,19 @@ private fun GoalCard(
                             Spacer(Modifier.width(6.dp))
                         }
                         StickerButton(
-                            if (isDecomposing) "Decomposing…" else "✂ AI-decompose",
+                            label = if (isDecomposing) "Decomposing…" else "✂ AI-decompose",
                             onClick = { vm.decompose(goal.id) },
                             enabled = !vm.busy.value,
+                            modifier = Modifier.heightIn(min = 48.dp),
                             arrow = !isDecomposing,
                         )
                         Spacer(Modifier.width(6.dp))
                     }
-                    PaperChip("+ Task", onClick = { onAddTask(null) }, enabled = canMutate)
+                    Button(
+                        onClick = { onAddTask(null) },
+                        enabled = canMutate,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("+ Task") }
                 }
             }
 
@@ -350,6 +377,7 @@ private fun GoalCard(
                     key(task.id) {
                         TaskRow(task, row.depth, vm, childCounts[task.id] ?: 0, canMutate,
                             onEdit = { onEditTask(task.id) },
+                            onDelete = { onDeleteTask(task.id) },
                             onAddSubtask = { onAddTask(task.id) })
                     }
                 }
@@ -366,56 +394,23 @@ private fun TaskRow(
     childCount: Int,
     canMutate: Boolean,
     onEdit: () -> Unit,
+    onDelete: () -> Unit,
     onAddSubtask: () -> Unit,
 ) {
     var showDatePicker by remember(t.id) { mutableStateOf(false) }
-    var textExpanded by rememberSaveable(t.id) { mutableStateOf(false) }
-    var textOverflows by remember(t.id, t.title) { mutableStateOf(false) }
-    val indent = depth.coerceAtMost(3) * 12
-    Column {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(start = indent.dp, top = 1.dp, bottom = 1.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(checked = t.done, onCheckedChange = { vm.toggle(t.id) }, enabled = canMutate)
-            Column(Modifier.weight(1f).clickable(enabled = canMutate || textOverflows || textExpanded,
-                onClickLabel = if (canMutate) "Edit “${t.title}”" else if (textExpanded) "Collapse text" else "Expand full text") {
-                if (canMutate) onEdit() else textExpanded = !textExpanded
-            }) {
-                if (depth > 3) {
-                    Text("Subtask level ${depth + 1}", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(
-                    t.title,
-                    fontSize = if (depth == 0) 14.sp else 13.sp,
-                    fontWeight = if (depth == 0) FontWeight.SemiBold else FontWeight.Normal,
-                    textDecoration = if (t.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                    color = if (t.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                    maxLines = if (textExpanded) Int.MAX_VALUE else 2,
-                    overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { if (!textExpanded) textOverflows = it.hasVisualOverflow },
-                )
-                t.dueDateText()?.let { date ->
-                    Text(date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-            TaskDateAction(t.title, t.dueDateText(), canMutate) { showDatePicker = true }
-            if (canMutate) {
-                IconButton(onClick = onAddSubtask, modifier = Modifier.size(40.dp)
-                    .semantics { contentDescription = "Add subtask to “${t.title}”" }) { Text("＋", fontSize = 24.sp) }
-            }
-            if (childCount > 0) {
-                val open = vm.expandedTasks[t.id] == true
-                IconButton(onClick = { vm.expandedTasks[t.id] = !open }, modifier = Modifier.size(36.dp)
-                    .semantics { contentDescription = if (open) "Collapse subtasks of “${t.title}”" else "Expand $childCount subtasks of “${t.title}”" }) {
-                    Text(if (open) "▾" else "▸", fontSize = 20.sp)
-                }
-            }
-        }
-    }
+    TaskTreeItem(
+        task = t,
+        depth = depth,
+        childCount = childCount,
+        expanded = vm.expandedTasks[t.id] == true,
+        canMutate = canMutate,
+        onToggleExpanded = { vm.expandedTasks[t.id] = vm.expandedTasks[t.id] != true },
+        onEdit = onEdit,
+        onSetDate = { showDatePicker = true },
+        onDelete = onDelete,
+        onAddSubtask = onAddSubtask,
+        onToggleDone = { vm.toggle(t.id) },
+    )
     if (showDatePicker && canMutate) {
         TaskDateDialog(
             dueDate = t.dueDate,

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -132,13 +133,18 @@ private fun inline(raw: String): AnnotatedString = buildAnnotatedString {
 }
 
 @Composable
-fun MarkdownText(source: String, modifier: Modifier = Modifier, scrollable: Boolean = true) {
+fun MarkdownText(
+    source: String,
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+) {
     val blocks = remember(source) { parseMarkdown(source) }
     Column(
         modifier
             .fillMaxWidth()
             .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(contentPadding)
     ) {
         for (b in blocks) {
             when (b) {
